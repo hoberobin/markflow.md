@@ -1,0 +1,116 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0e0e0f;
+  --bg2: #161618;
+  --bg3: #1e1e21;
+  --bg4: #252528;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.13);
+  --text: #e8e8e6;
+  --text2: #9a9a95;
+  --text3: #5a5a58;
+  --accent: #c8f060;
+  --accent2: #a8d040;
+  --coral: #ff6b5b;
+  --blue: #5b9cf6;
+  --mono: 'DM Mono', monospace;
+  --serif: 'Instrument Serif', serif;
+  --sans: 'Geist', sans-serif;
+  --radius: 6px;
+  --radius-lg: 10px;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border2); }
+
+button {
+  font-family: var(--sans);
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--text);
+  transition: all 0.15s;
+}
+
+input, textarea {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  outline: none;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+input:focus, textarea:focus {
+  border-color: var(--border2);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text3);
+}
+
+/* ── Markdown preview ─────────────────────────────────────── */
+.preview {
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--text);
+  padding: 32px 40px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.preview h1 { font-family: var(--serif); font-size: 2.2rem; font-weight: 400; font-style: italic; color: var(--text); margin-bottom: 0.6em; line-height: 1.2; }
+.preview h2 { font-family: var(--serif); font-size: 1.5rem; font-weight: 400; color: var(--text); margin: 1.8em 0 0.5em; }
+.preview h3 { font-family: var(--sans); font-size: 1rem; font-weight: 500; color: var(--text2); letter-spacing: 0.06em; text-transform: uppercase; margin: 1.4em 0 0.4em; }
+.preview p { margin-bottom: 1em; color: var(--text); }
+.preview a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(200,240,96,0.3); }
+.preview a:hover { border-color: var(--accent); }
+.preview code { font-family: var(--mono); font-size: 0.85em; background: var(--bg4); padding: 2px 6px; border-radius: 3px; color: var(--accent); }
+.preview pre { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; overflow-x: auto; margin: 1.2em 0; }
+.preview pre code { background: none; padding: 0; color: var(--text2); font-size: 13px; }
+.preview blockquote { border-left: 2px solid var(--accent); padding-left: 16px; color: var(--text2); font-style: italic; margin: 1.2em 0; }
+.preview ul, .preview ol { padding-left: 1.4em; margin-bottom: 1em; }
+.preview li { margin-bottom: 0.3em; }
+.preview hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+.preview strong { font-weight: 500; color: var(--text); }
+.preview table { width: 100%; border-collapse: collapse; margin: 1.2em 0; font-size: 13px; }
+.preview th { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border2); color: var(--text2); font-weight: 500; font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.preview td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+
+/* ── CodeMirror overrides ─────────────────────────────────── */
+.cm-editor {
+  height: 100%;
+  background: transparent !important;
+  font-family: var(--mono) !important;
+  font-size: 14px !important;
+}
+
+.cm-editor.cm-focused { outline: none !important; }
+.cm-scroller { overflow: auto !important; padding: 32px 40px !important; }
+.cm-content { min-height: 100% !important; }
+.cm-line { line-height: 1.8 !important; }
+.cm-gutters { display: none !important; }
+.cm-cursor { border-left-color: var(--accent) !important; }
+.cm-selectionBackground { background: rgba(200,240,96,0.1) !important; }
+.cm-activeLine { background: rgba(255,255,255,0.02) !important; }
+.cm-yRemoteSelection { border-radius: 1px; }
+.cm-yRemoteSelectionCaret { border-left-width: 2px !important; }

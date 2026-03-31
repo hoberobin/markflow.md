@@ -1,0 +1,19 @@
+{
+  "name": "markflow-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "chokidar": "^3.6.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "ws": "^8.17.0",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.14",
+    "lib0": "^0.2.93"
+  }
+}
