@@ -2,9 +2,6 @@ function cleanUrl(value: unknown): string {
   return String(value || '').trim().replace(/\/$/, '')
 }
 
-const RUNTIME_SERVER_KEY = 'mf_server_url'
-const HEALTH_TIMEOUT_MS = 1200
-
 function getServerEnvUrl(): string {
   return cleanUrl(import.meta.env.VITE_SERVER_URL)
 }
@@ -25,26 +22,6 @@ function toWebSocketUrl(serverUrl: string): string | null {
   }
 }
 
-function getRuntimeServerUrl(): string {
-  if (typeof window !== 'undefined') {
-    const fromQuery = cleanUrl(new URLSearchParams(window.location.search || '').get('server'))
-    if (fromQuery) return fromQuery
-    const fromStorage = cleanUrl(window.localStorage?.getItem?.(RUNTIME_SERVER_KEY))
-    if (fromStorage) return fromStorage
-  }
-  return ''
-}
-
-export function setRuntimeServerUrl(serverUrl: string | null): void {
-  if (typeof window === 'undefined') return
-  const cleaned = cleanUrl(serverUrl)
-  if (!cleaned) {
-    window.localStorage?.removeItem?.(RUNTIME_SERVER_KEY)
-    return
-  }
-  window.localStorage?.setItem?.(RUNTIME_SERVER_KEY, cleaned)
-}
-
 function getDefaultServerUrl(): string {
   if (typeof window !== 'undefined') {
     const { protocol, hostname, origin, port } = window.location
@@ -62,7 +39,6 @@ function getServerCandidates(): string[] {
   }
 
   push(getServerEnvUrl())
-  push(getRuntimeServerUrl())
 
   if (typeof window !== 'undefined') {
     const { origin, protocol, hostname, port } = window.location
@@ -79,70 +55,9 @@ export function getServerCandidatesForClient(): string[] {
   return getServerCandidates()
 }
 
-async function hasHealthEndpoint(serverUrl: string): Promise<boolean> {
-  const url = `${cleanUrl(serverUrl)}/health`
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS)
-  try {
-    const response = await fetch(url, { signal: controller.signal })
-    return response.ok
-  } catch {
-    return false
-  } finally {
-    clearTimeout(timeoutId)
-  }
-}
-
 /** API base: env/runtime override wins, then best-effort auto detection, then fallback. */
 export function getServerUrl(): string {
-  return getServerEnvUrl() || getRuntimeServerUrl() || getDefaultServerUrl()
-}
-
-export async function detectServerUrl(): Promise<string> {
-  const explicit = getServerEnvUrl()
-  if (explicit) return explicit
-  const runtime = getRuntimeServerUrl()
-  if (runtime) return runtime
-
-  for (const candidate of getServerCandidates()) {
-    if (await hasHealthEndpoint(candidate)) return candidate
-  }
-  return getDefaultServerUrl()
-}
-
-export async function detectServerUrlParallel(): Promise<string> {
-  const explicit = getServerEnvUrl()
-  if (explicit) return explicit
-  const runtime = getRuntimeServerUrl()
-  if (runtime) return runtime
-
-  const candidates = getServerCandidates()
-  if (candidates.length === 0) return getDefaultServerUrl()
-
-  return new Promise(resolve => {
-    let remaining = candidates.length
-    let resolved = false
-
-    for (const candidate of candidates) {
-      void hasHealthEndpoint(candidate).then(ok => {
-        if (resolved) return
-        if (ok) {
-          resolved = true
-          resolve(candidate)
-          return
-        }
-        remaining -= 1
-        if (remaining <= 0 && !resolved) {
-          resolved = true
-          resolve(getDefaultServerUrl())
-        }
-      })
-    }
-  })
-}
-
-export async function checkServerHealth(serverUrl: string): Promise<boolean> {
-  return hasHealthEndpoint(serverUrl)
+  return getServerEnvUrl() || getDefaultServerUrl()
 }
 
 export function getWsUrlForServer(serverUrl: string): string {

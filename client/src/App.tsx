@@ -9,36 +9,22 @@ import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { basicSetup } from 'codemirror'
-import {
-  checkServerHealth,
-  detectServerUrlParallel,
-  getServerCandidatesForClient,
-  getServerUrl,
-  getWsUrlForServer,
-  setRuntimeServerUrl
-} from './config'
+import { getServerCandidatesForClient, getWsUrlForServer } from './config'
 import type { PresencePeer } from './types'
 import { SHARED_DOC_KEY } from './utils/collab'
-import { copyCurrentUrl, randomName, readNameFromStorage, saveNameToStorage } from './utils/presence'
+import { copyCurrentUrl } from './utils/presence'
 import { applyMarkdownWrapper, applyMarkdownPrefix, applyMarkdownLink } from './utils/markdownFormat'
 
-const COLORS = ['#c8f060', '#60c8f0', '#f060c8', '#f0c860', '#60f0c8', '#f06060', '#c860f0']
-
-function getColor(name: string): string {
-  let h = 0
-  for (const c of name) h = c.charCodeAt(0) + ((h << 5) - h)
-  return COLORS[Math.abs(h) % COLORS.length]!
-}
+const SESSION_NAME = 'Teammate'
+const SESSION_COLOR = '#c8f060'
 
 function CollabEditor({
-  userName,
   serverUrl,
   onContentChange,
   onPresenceChange,
   editorViewRef,
   onConnectionChange
 }: {
-  userName: string
   serverUrl: string
   onContentChange: (text: string) => void
   onPresenceChange: (states: PresencePeer[]) => void
@@ -46,8 +32,6 @@ function CollabEditor({
   onConnectionChange: (connected: boolean) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const providerRef = useRef<WebsocketProvider | null>(null)
-  const docRef = useRef<Y.Doc | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -55,16 +39,14 @@ function CollabEditor({
     const ydoc = new Y.Doc()
     const ytext = ydoc.getText('content')
     const provider = new WebsocketProvider(getWsUrlForServer(serverUrl), SHARED_DOC_KEY, ydoc)
-    providerRef.current = provider
-    docRef.current = ydoc
-    provider.awareness.setLocalStateField('user', { name: userName, color: getColor(userName) })
+    provider.awareness.setLocalStateField('user', { name: SESSION_NAME, color: SESSION_COLOR })
 
     const applyPresence = () => {
       const states: PresencePeer[] = []
       provider.awareness.getStates().forEach((state, clientId) => {
         if (clientId === ydoc.clientID || !state.user) return
-        const u = state.user as { name: string; color: string }
-        states.push({ clientId, name: u.name, color: u.color })
+        const u = state.user as { name?: string; color?: string }
+        states.push({ clientId, name: u.name || SESSION_NAME, color: u.color || SESSION_COLOR })
       })
       onPresenceChange(states)
     }
@@ -103,44 +85,29 @@ function CollabEditor({
     editorViewRef.current = view
 
     return () => {
-      providerRef.current = null
-      docRef.current = null
       editorViewRef.current = null
       view.destroy()
       provider.destroy()
       ydoc.destroy()
       onConnectionChange(false)
     }
-  }, [editorViewRef, onConnectionChange, onContentChange, onPresenceChange, serverUrl, userName])
-
-  useEffect(() => {
-    const provider = providerRef.current
-    const ydoc = docRef.current
-    if (!provider || !ydoc) return
-    provider.awareness.setLocalStateField('user', { name: userName, color: getColor(userName) })
-  }, [userName])
+  }, [editorViewRef, onConnectionChange, onContentChange, onPresenceChange, serverUrl])
 
   return <div ref={containerRef} style={{ height: '100%', overflow: 'hidden' }} />
 }
 
 export default function App() {
-  const [userName, setUserName] = useState(() => readNameFromStorage() || randomName())
   const [content, setContent] = useState('')
   const [preview, setPreview] = useState(false)
   const [presence, setPresence] = useState<PresencePeer[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'failed'>('idle')
-  const [serverUrl, setServerUrl] = useState(() => getServerUrl())
-  const [serverInput, setServerInput] = useState(() => getServerUrl())
-  const [serverState, setServerState] = useState<'auto' | 'ready' | 'failed'>('auto')
-  const [serverCandidates, setServerCandidates] = useState<string[]>(() => getServerCandidatesForClient())
+  const [serverCandidates] = useState<string[]>(() => getServerCandidatesForClient())
+  const [serverIndex, setServerIndex] = useState(0)
   const editorViewRef = useRef<EditorView | null>(null)
-  const fallbackTriedRef = useRef<Set<string>>(new Set())
 
-  useEffect(() => {
-    saveNameToStorage(userName)
-  }, [userName])
+  const serverUrl = serverCandidates[serverIndex] || serverCandidates[0] || window.location.origin
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -149,22 +116,13 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      const detected = await detectServerUrlParallel()
-      if (cancelled) return
-      setServerUrl(detected)
-      setServerInput(detected)
-      setRuntimeServerUrl(detected)
-      setServerCandidates([detected, ...getServerCandidatesForClient().filter(candidate => candidate !== detected)])
-      setServerState('ready')
-    })().catch(() => {
-      if (!cancelled) setServerState('failed')
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    if (isConnected) return
+    if (serverIndex >= serverCandidates.length - 1) return
+    const timer = setTimeout(() => {
+      setServerIndex(index => Math.min(index + 1, serverCandidates.length - 1))
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [isConnected, serverCandidates.length, serverIndex])
 
   const previewHtml = useMemo(() => {
     const parsed = marked.parse(content || '', { async: false }) as string
@@ -180,38 +138,31 @@ export default function App() {
     }
   }, [content])
 
-  const switchServerUrl = useCallback((nextServerUrl: string, options?: { persist?: boolean }) => {
-    const shouldPersist = options?.persist ?? true
-    if (shouldPersist) {
-      setRuntimeServerUrl(nextServerUrl)
-    }
-    setServerUrl(nextServerUrl)
-    setServerInput(nextServerUrl)
-    setServerState('ready')
-    setServerCandidates(prev => [nextServerUrl, ...prev.filter(candidate => candidate !== nextServerUrl)])
-  }, [])
-
   const saveDocument = useCallback(async () => {
     setDownloadState('downloading')
     try {
+      const ordered = [serverUrl, ...serverCandidates.filter(candidate => candidate !== serverUrl)]
       let markdown = ''
-      let success = false
-      const downloadCandidates = [serverUrl, ...serverCandidates.filter(candidate => candidate !== serverUrl)]
-      for (const candidate of downloadCandidates) {
+      let switchedTo = -1
+      for (let i = 0; i < ordered.length; i++) {
         try {
-          const response = await fetch(`${candidate}/document/raw`)
+          const response = await fetch(`${ordered[i]}/document/raw`)
           if (!response.ok) continue
           markdown = await response.text()
-          success = true
-          if (candidate !== serverUrl) {
-            switchServerUrl(candidate)
-          }
+          switchedTo = i
           break
         } catch {
-          // Try next candidate automatically.
+          // Try next candidate.
         }
       }
-      if (!success) throw new Error('Failed to download markdown file')
+      if (!markdown) throw new Error('Failed to download markdown file')
+
+      if (switchedTo > 0) {
+        const nextBase = ordered[switchedTo]
+        const nextIndex = serverCandidates.findIndex(candidate => candidate === nextBase)
+        if (nextIndex >= 0) setServerIndex(nextIndex)
+      }
+
       const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
       const downloadUrl = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
@@ -226,58 +177,7 @@ export default function App() {
       setDownloadState('failed')
       window.setTimeout(() => setDownloadState('idle'), 1500)
     }
-  }, [serverCandidates, serverUrl, switchServerUrl])
-
-  useEffect(() => {
-    if (isConnected) {
-      setServerState('ready')
-      fallbackTriedRef.current.clear()
-      return
-    }
-
-    const orderedCandidates = [serverUrl, ...serverCandidates.filter(candidate => candidate !== serverUrl)]
-    const nextCandidate = orderedCandidates.find(
-      candidate => candidate !== serverUrl && !fallbackTriedRef.current.has(candidate)
-    )
-    if (!nextCandidate) {
-      setServerState('failed')
-      setIsConnected(false)
-      return
-    }
-
-    const timer = setTimeout(() => {
-      fallbackTriedRef.current.add(nextCandidate)
-      switchServerUrl(nextCandidate)
-    }, 900)
-
-    return () => clearTimeout(timer)
-  }, [isConnected, serverCandidates, serverUrl, switchServerUrl])
-
-  const applyServerOverride = useCallback(async () => {
-    const next = serverInput.trim().replace(/\/$/, '')
-    if (!next) {
-      setRuntimeServerUrl(null)
-      const fallback = getServerUrl()
-      switchServerUrl(fallback)
-      setServerState('auto')
-      return
-    }
-
-    const ok = await checkServerHealth(next)
-    if (!ok) {
-      setServerState('failed')
-      return
-    }
-
-    setRuntimeServerUrl(next)
-    switchServerUrl(next)
-    setServerCandidates(getServerCandidatesForClient())
-    setServerState('ready')
-  }, [serverInput, switchServerUrl])
-
-  useEffect(() => {
-    setServerCandidates(prev => [serverUrl, ...prev.filter(candidate => candidate !== serverUrl)])
-  }, [serverUrl])
+  }, [serverCandidates, serverUrl])
 
   const shareLink = async () => {
     const ok = await copyCurrentUrl()
@@ -349,24 +249,10 @@ export default function App() {
     <div className="single-app">
       <header className="single-topbar">
         <div className="brand">markflow.md</div>
-        <input
-          className="name-input"
-          value={userName}
-          onChange={e => setUserName(e.target.value || randomName())}
-          aria-label="Your name"
-        />
         <div className="presence-badges">
           <span>{presence.length + 1} online</span>
-          {presence.slice(0, 3).map(peer => (
-            <span key={peer.clientId} className="presence-chip" style={{ borderColor: peer.color }}>
-              {peer.name}
-            </span>
-          ))}
           <span className={`topbar-status ${isConnected ? 'is-connected' : 'is-connecting'}`} aria-live="polite">
             {isConnected ? 'Connected' : 'Connecting'}
-          </span>
-          <span className={`topbar-status ${serverState === 'failed' ? 'is-connecting' : 'is-connected'}`} aria-live="polite">
-            {serverState === 'auto' ? 'Detecting backend…' : serverState === 'failed' ? 'Backend unreachable' : 'Backend ready'}
           </span>
         </div>
         <div className="topbar-actions">
@@ -404,20 +290,6 @@ export default function App() {
           </div>
         </div>
       </header>
-      <div className="toolbar server-toolbar" role="group" aria-label="Backend connection settings">
-        <div className="toolbar-group">
-          <input
-            className="server-input"
-            value={serverInput}
-            onChange={e => setServerInput(e.target.value)}
-            placeholder="Backend URL (optional)"
-            aria-label="Backend URL override"
-          />
-          <button type="button" className="toolbar-btn" onClick={applyServerOverride}>
-            Apply backend URL
-          </button>
-        </div>
-      </div>
 
       <div className="toolbar" role="toolbar" aria-label="Markdown formatting tools">
         <div className="toolbar-group">
@@ -504,7 +376,6 @@ export default function App() {
         >
           <CollabEditor
             key={serverUrl}
-            userName={userName}
             serverUrl={serverUrl}
             onContentChange={setContent}
             onPresenceChange={setPresence}
