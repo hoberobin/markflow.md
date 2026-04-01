@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { detectServerUrl, getServerUrl, getWsUrl, getWsUrlForServer } from './config'
+import { detectServerUrlParallel, getServerCandidatesForClient, getServerUrl, getWsUrl, getWsUrlForServer } from './config'
 
 const originalWindow = globalThis.window
 
@@ -92,7 +92,19 @@ describe('config URL resolution', () => {
       return Promise.resolve({ ok: false } as Response)
     })
 
-    await expect(detectServerUrl()).resolves.toBe('https://docs.example.com/api')
+    await expect(detectServerUrlParallel()).resolves.toBe('https://docs.example.com/api')
     fetchSpy.mockRestore()
+  })
+
+  it('includes likely same-origin and api candidates', () => {
+    setWindowForTest(mockWindowLocation({
+      protocol: 'https:',
+      hostname: 'docs.example.com',
+      origin: 'https://docs.example.com',
+      port: ''
+    }))
+    const candidates = getServerCandidatesForClient()
+    expect(candidates).toContain('https://docs.example.com')
+    expect(candidates).toContain('https://docs.example.com/api')
   })
 })

@@ -3,6 +3,7 @@ function cleanUrl(value: unknown): string {
 }
 
 const RUNTIME_SERVER_KEY = 'mf_server_url'
+const HEALTH_TIMEOUT_MS = 1200
 
 function getServerEnvUrl(): string {
   return cleanUrl(import.meta.env.VITE_SERVER_URL)
@@ -74,10 +75,14 @@ function getServerCandidates(): string[] {
   return out
 }
 
+export function getServerCandidatesForClient(): string[] {
+  return getServerCandidates()
+}
+
 async function hasHealthEndpoint(serverUrl: string): Promise<boolean> {
   const url = `${cleanUrl(serverUrl)}/health`
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 1200)
+  const timeoutId = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS)
   try {
     const response = await fetch(url, { signal: controller.signal })
     return response.ok
@@ -103,6 +108,37 @@ export async function detectServerUrl(): Promise<string> {
     if (await hasHealthEndpoint(candidate)) return candidate
   }
   return getDefaultServerUrl()
+}
+
+export async function detectServerUrlParallel(): Promise<string> {
+  const explicit = getServerEnvUrl()
+  if (explicit) return explicit
+  const runtime = getRuntimeServerUrl()
+  if (runtime) return runtime
+
+  const candidates = getServerCandidates()
+  if (candidates.length === 0) return getDefaultServerUrl()
+
+  return new Promise(resolve => {
+    let remaining = candidates.length
+    let resolved = false
+
+    for (const candidate of candidates) {
+      void hasHealthEndpoint(candidate).then(ok => {
+        if (resolved) return
+        if (ok) {
+          resolved = true
+          resolve(candidate)
+          return
+        }
+        remaining -= 1
+        if (remaining <= 0 && !resolved) {
+          resolved = true
+          resolve(getDefaultServerUrl())
+        }
+      })
+    }
+  })
 }
 
 export async function checkServerHealth(serverUrl: string): Promise<boolean> {

@@ -9,7 +9,14 @@ import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { basicSetup } from 'codemirror'
-import { checkServerHealth, detectServerUrl, getServerUrl, getWsUrlForServer, setRuntimeServerUrl } from './config'
+import {
+  checkServerHealth,
+  detectServerUrlParallel,
+  getServerCandidatesForClient,
+  getServerUrl,
+  getWsUrlForServer,
+  setRuntimeServerUrl
+} from './config'
 import type { PresencePeer } from './types'
 import { SHARED_DOC_KEY } from './utils/collab'
 import { copyCurrentUrl, randomName, readNameFromStorage, saveNameToStorage } from './utils/presence'
@@ -127,7 +134,9 @@ export default function App() {
   const [serverUrl, setServerUrl] = useState(() => getServerUrl())
   const [serverInput, setServerInput] = useState(() => getServerUrl())
   const [serverState, setServerState] = useState<'auto' | 'ready' | 'failed'>('auto')
+  const [serverCandidates, setServerCandidates] = useState<string[]>(() => getServerCandidatesForClient())
   const editorViewRef = useRef<EditorView | null>(null)
+  const fallbackTriedRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     saveNameToStorage(userName)
@@ -142,11 +151,12 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const detected = await detectServerUrl()
+      const detected = await detectServerUrlParallel()
       if (cancelled) return
       setServerUrl(detected)
       setServerInput(detected)
       setRuntimeServerUrl(detected)
+      setServerCandidates([detected, ...getServerCandidatesForClient().filter(candidate => candidate !== detected)])
       setServerState('ready')
     })().catch(() => {
       if (!cancelled) setServerState('failed')
@@ -170,12 +180,38 @@ export default function App() {
     }
   }, [content])
 
+  const switchServerUrl = useCallback((nextServerUrl: string, options?: { persist?: boolean }) => {
+    const shouldPersist = options?.persist ?? true
+    if (shouldPersist) {
+      setRuntimeServerUrl(nextServerUrl)
+    }
+    setServerUrl(nextServerUrl)
+    setServerInput(nextServerUrl)
+    setServerState('ready')
+    setServerCandidates(prev => [nextServerUrl, ...prev.filter(candidate => candidate !== nextServerUrl)])
+  }, [])
+
   const saveDocument = useCallback(async () => {
     setDownloadState('downloading')
     try {
-      const response = await fetch(`${serverUrl}/document/raw`)
-      if (!response.ok) throw new Error('Failed to download markdown file')
-      const markdown = await response.text()
+      let markdown = ''
+      let success = false
+      const downloadCandidates = [serverUrl, ...serverCandidates.filter(candidate => candidate !== serverUrl)]
+      for (const candidate of downloadCandidates) {
+        try {
+          const response = await fetch(`${candidate}/document/raw`)
+          if (!response.ok) continue
+          markdown = await response.text()
+          success = true
+          if (candidate !== serverUrl) {
+            switchServerUrl(candidate)
+          }
+          break
+        } catch {
+          // Try next candidate automatically.
+        }
+      }
+      if (!success) throw new Error('Failed to download markdown file')
       const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
       const downloadUrl = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
@@ -190,15 +226,39 @@ export default function App() {
       setDownloadState('failed')
       window.setTimeout(() => setDownloadState('idle'), 1500)
     }
-  }, [serverUrl])
+  }, [serverCandidates, serverUrl, switchServerUrl])
+
+  useEffect(() => {
+    if (isConnected) {
+      setServerState('ready')
+      fallbackTriedRef.current.clear()
+      return
+    }
+
+    const orderedCandidates = [serverUrl, ...serverCandidates.filter(candidate => candidate !== serverUrl)]
+    const nextCandidate = orderedCandidates.find(
+      candidate => candidate !== serverUrl && !fallbackTriedRef.current.has(candidate)
+    )
+    if (!nextCandidate) {
+      setServerState('failed')
+      setIsConnected(false)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      fallbackTriedRef.current.add(nextCandidate)
+      switchServerUrl(nextCandidate)
+    }, 900)
+
+    return () => clearTimeout(timer)
+  }, [isConnected, serverCandidates, serverUrl, switchServerUrl])
 
   const applyServerOverride = useCallback(async () => {
     const next = serverInput.trim().replace(/\/$/, '')
     if (!next) {
       setRuntimeServerUrl(null)
       const fallback = getServerUrl()
-      setServerUrl(fallback)
-      setServerInput(fallback)
+      switchServerUrl(fallback)
       setServerState('auto')
       return
     }
@@ -210,10 +270,14 @@ export default function App() {
     }
 
     setRuntimeServerUrl(next)
-    setServerUrl(next)
-    setServerInput(next)
+    switchServerUrl(next)
+    setServerCandidates(getServerCandidatesForClient())
     setServerState('ready')
-  }, [serverInput])
+  }, [serverInput, switchServerUrl])
+
+  useEffect(() => {
+    setServerCandidates(prev => [serverUrl, ...prev.filter(candidate => candidate !== serverUrl)])
+  }, [serverUrl])
 
   const shareLink = async () => {
     const ok = await copyCurrentUrl()
@@ -439,6 +503,7 @@ export default function App() {
           className={`workspace-panel workspace-panel-editor ${preview ? 'is-hidden' : 'is-active'}`}
         >
           <CollabEditor
+            key={serverUrl}
             userName={userName}
             serverUrl={serverUrl}
             onContentChange={setContent}
