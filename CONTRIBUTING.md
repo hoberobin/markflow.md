@@ -44,15 +44,13 @@ Common variables:
 Run tests before opening a PR:
 
 ```bash
-cd server && npm test
-cd client && npm test
+npm run test
 ```
 
 ## Build verification
 
 ```bash
-cd server && npm run build
-cd client && npm run build
+npm run build
 ```
 
 ## Pull request expectations
@@ -61,6 +59,7 @@ cd client && npm run build
 - Describe user-visible behavior changes clearly.
 - Include test/build evidence in the PR description.
 - Update docs when adding or changing features.
+- Add entries to `CHANGELOG.md` for meaningful user-facing changes.
 
 ## Code style
 

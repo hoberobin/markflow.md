@@ -102,6 +102,13 @@ cd server && npm run dev
 cd client && npm run dev
 ```
 
+Or run both quality checks from the repo root:
+
+```bash
+npm run test
+npm run build
+```
+
 ## Testing
 
 ```bash
@@ -118,3 +125,5 @@ cd client && npm test
 - [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
 - [SECURITY.md](./SECURITY.md)
 - [LICENSE](./LICENSE)
+- [CHANGELOG.md](./CHANGELOG.md)
+- [ROADMAP.md](./ROADMAP.md)
