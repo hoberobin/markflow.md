@@ -6,7 +6,7 @@ echo "▸ Markflow setup"
 # Check for .env
 if [ ! -f .env ]; then
   cp .env.example .env
-  echo "✓ Created .env — add your ANTHROPIC_API_KEY"
+  echo "✓ Created .env"
 fi
 
 # Install deps
