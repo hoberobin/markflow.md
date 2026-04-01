@@ -29,6 +29,13 @@ const MSG_SYNC = 0
 const MSG_AWARENESS = 1
 const MSG_QUERY_AWARENESS = 3
 
+function toUint8ArrayMessage(data: Buffer | ArrayBuffer | Buffer[]): Uint8Array | null {
+  if (Buffer.isBuffer(data)) return new Uint8Array(data)
+  if (Array.isArray(data)) return new Uint8Array(Buffer.concat(data))
+  if (data instanceof ArrayBuffer) return new Uint8Array(data)
+  return null
+}
+
 function peekAwarenessClientIds(update: Uint8Array): number[] {
   try {
     const decoder = decoding.createDecoder(update)
@@ -92,8 +99,9 @@ wss.on('connection', (ws: MarkflowWebSocket, req) => {
   }
 
   ws.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
-    const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer)
-    const decoder = decoding.createDecoder(new Uint8Array(buf))
+    const raw = toUint8ArrayMessage(data)
+    if (!raw) return
+    const decoder = decoding.createDecoder(raw)
     const msgType = decoding.readVarUint(decoder)
 
     if (msgType === MSG_SYNC) {
@@ -104,7 +112,7 @@ wss.on('connection', (ws: MarkflowWebSocket, req) => {
 
       if (syncMsgType === syncProtocol.messageYjsSyncStep2 || syncMsgType === syncProtocol.messageYjsUpdate) {
         for (const client of clients) {
-          if (client !== ws && client.readyState === 1) client.send(buf)
+          if (client !== ws && client.readyState === 1) client.send(raw)
         }
       }
       return

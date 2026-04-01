@@ -11,6 +11,8 @@ describe('collab utils', () => {
     expect(parseDocPath('/')).toBe(SHARED_DOC_KEY)
     expect(parseDocPath('/shared')).toBe(SHARED_DOC_KEY)
     expect(parseDocPath('/shared.md')).toBe(SHARED_DOC_KEY)
+    expect(parseDocPath('/api/shared')).toBe(SHARED_DOC_KEY)
+    expect(parseDocPath('/api/v1/shared.md')).toBe(SHARED_DOC_KEY)
   })
 
   it('rejects non-shared paths', () => {
