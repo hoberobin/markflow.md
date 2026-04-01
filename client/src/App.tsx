@@ -28,11 +28,6 @@ function randomName(): string {
   return NAMES[Math.floor(Math.random() * NAMES.length)]! + Math.floor(Math.random() * 99)
 }
 
-function hasRoomQueryParam(): boolean {
-  if (typeof window === 'undefined') return false
-  return new URLSearchParams(window.location.search).has('room')
-}
-
 interface CollabEditorProps {
   room: string
   fileName: string
@@ -119,7 +114,7 @@ function CollabEditor({
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [room, setRoom] = useState(() => readRoomFromLocation())
-  const [workspaceEntered, setWorkspaceEntered] = useState(() => hasRoomQueryParam())
+  const [workspaceEntered, setWorkspaceEntered] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [userName, setUserName] = useState(() => {
     const saved = localStorage.getItem('mf_name')
@@ -133,7 +128,7 @@ export default function App() {
   const [preview, setPreview] = useState(false)
   const [presence, setPresence] = useState<PresencePeer[]>([])
   const [createFormSignal, setCreateFormSignal] = useState(0)
-  const { files, loading, error: filesError, createFile, deleteFile, refresh } = useFiles(room)
+  const { files, loading, error: filesError, createFile, deleteFile, refresh } = useFiles(room, workspaceEntered)
 
   useEffect(() => {
     const id = setInterval(() => void refresh(), 5000)
@@ -195,17 +190,17 @@ export default function App() {
     return DOMPurify.sanitize(parsed)
   }, [content])
 
-  const openWorkspaceWithRoom = (nextRoom: string) => {
+  const connectToRoom = (nextRoom: string) => {
     setRoom(sanitizeRoomId(nextRoom))
     setWorkspaceEntered(true)
   }
 
   if (!workspaceEntered) {
     return (
-      <Landing
+      <RoomConnectDialog
         initialRoom={room}
-        onJoinRoom={nextRoom => openWorkspaceWithRoom(nextRoom)}
-        onCreateRoom={() => openWorkspaceWithRoom(generateRoomId())}
+        onJoinRoom={nextRoom => connectToRoom(nextRoom)}
+        onCreateRoom={() => connectToRoom(generateRoomId())}
       />
     )
   }
@@ -392,7 +387,7 @@ export default function App() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function Landing({
+function RoomConnectDialog({
   initialRoom,
   onJoinRoom,
   onCreateRoom
@@ -413,60 +408,45 @@ function Landing({
     typeof window === 'undefined' ? `https://app.markflow.dev/?room=${roomPreview}` : `${window.location.origin}/?room=${roomPreview}`
 
   return (
-    <main className="landing-shell">
-      <section className="landing-card">
-        <div className="landing-badge">MARKFLOW</div>
-        <h1 className="landing-title">Collaborative markdown rooms for teams that move fast.</h1>
-        <p className="landing-subtitle">
-          Spin up a room in seconds, share one link, and edit docs together in real-time from your phone or computer.
-        </p>
+    <main className="connect-shell">
+      <section className="connect-dialog" role="dialog" aria-modal="true" aria-labelledby="room-connect-title">
+        <div className="connect-badge">MARKFLOW</div>
+        <h1 id="room-connect-title" className="connect-title">
+          Connect to a room
+        </h1>
+        <p className="connect-subtitle">Join an existing room or create a new one before entering the workspace.</p>
 
         <form
-          className="landing-join-form"
+          className="connect-form"
           onSubmit={e => {
             e.preventDefault()
             onJoinRoom(roomDraft || DEFAULT_ROOM)
           }}
         >
-          <label htmlFor="landing-room-input" className="landing-label">
+          <label htmlFor="room-connect-input" className="connect-label">
             Room name
           </label>
-          <div className="landing-join-row">
+          <div className="connect-row">
             <input
-              id="landing-room-input"
+              id="room-connect-input"
               value={roomDraft}
               onChange={e => setRoomDraft(e.target.value)}
               placeholder="design-review"
-              className="landing-input"
+              className="connect-input"
               autoFocus
             />
-            <button type="submit" className="landing-btn landing-btn-primary">
-              Join room
+            <button type="submit" className="connect-btn connect-btn-primary">
+              Connect
             </button>
           </div>
-          <button type="button" className="landing-btn landing-btn-secondary" onClick={onCreateRoom}>
-            Create a new room
+          <button type="button" className="connect-btn connect-btn-secondary" onClick={onCreateRoom}>
+            Create and connect
           </button>
         </form>
 
-        <div className="landing-link-preview">
-          Share link preview: <span>{sharePreview}</span>
+        <div className="connect-link-preview">
+          Room link preview: <span>{sharePreview}</span>
         </div>
-      </section>
-
-      <section className="landing-features">
-        <article className="landing-feature">
-          <h2>Live collaboration</h2>
-          <p>Work in the same markdown file with shared presence and instant updates.</p>
-        </article>
-        <article className="landing-feature">
-          <h2>Room-based workspaces</h2>
-          <p>Each room stays isolated, so teams can split docs by project or sprint.</p>
-        </article>
-        <article className="landing-feature">
-          <h2>Mobile-first access</h2>
-          <p>Join from a phone, continue on desktop, and keep the same room link.</p>
-        </article>
       </section>
     </main>
   )

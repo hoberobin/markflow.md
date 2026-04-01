@@ -7,12 +7,13 @@ export interface WorkspaceFile {
   room?: string
 }
 
-export function useFiles(room: string) {
+export function useFiles(room: string, enabled = true) {
   const [files, setFiles] = useState<WorkspaceFile[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
+    if (!enabled) return
     try {
       const res = await fetch(`${getServerUrl()}/files?room=${encodeURIComponent(room)}`)
       if (!res.ok) throw new Error(`Server returned ${res.status}`)
@@ -25,14 +26,22 @@ export function useFiles(room: string) {
     } finally {
       setLoading(false)
     }
-  }, [room])
+  }, [enabled, room])
 
   useEffect(() => {
+    if (!enabled) {
+      setFiles([])
+      setError(null)
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     void refresh()
-  }, [refresh])
+  }, [enabled, refresh])
 
   const createFile = useCallback(
     async (name: string) => {
+      if (!enabled) throw new Error('Not connected to a room')
       const res = await fetch(`${getServerUrl()}/files`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,11 +55,12 @@ export function useFiles(room: string) {
       await refresh()
       return file
     },
-    [refresh, room]
+    [enabled, refresh, room]
   )
 
   const deleteFile = useCallback(
     async (name: string) => {
+      if (!enabled) throw new Error('Not connected to a room')
       const res = await fetch(`${getServerUrl()}/files/${encodeURIComponent(name)}?room=${encodeURIComponent(room)}`, {
         method: 'DELETE'
       })
@@ -60,7 +70,7 @@ export function useFiles(room: string) {
       }
       await refresh()
     },
-    [refresh, room]
+    [enabled, refresh, room]
   )
 
   return { files, loading, error, refresh, createFile, deleteFile }

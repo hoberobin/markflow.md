@@ -74,30 +74,28 @@ input::placeholder, textarea::placeholder {
   color: var(--text3);
 }
 
-/* ── Landing page ──────────────────────────────────────────── */
-.landing-shell {
+/* ── Room connect dialog ────────────────────────────────────── */
+.connect-shell {
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: minmax(0, 680px) minmax(0, 360px);
-  gap: 24px;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 24px;
+  place-items: center;
+  padding: 24px;
   background:
     radial-gradient(circle at 0% 0%, rgba(200, 240, 96, 0.09), transparent 36%),
     radial-gradient(circle at 100% 100%, rgba(91, 156, 246, 0.08), transparent 32%),
     var(--bg);
 }
 
-.landing-card {
+.connect-dialog {
+  width: min(100%, 560px);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
   border: 1px solid var(--border);
   border-radius: 18px;
-  padding: 28px;
+  padding: 24px;
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
 }
 
-.landing-badge {
+.connect-badge {
   width: fit-content;
   border: 1px solid rgba(200, 240, 96, 0.35);
   background: rgba(200, 240, 96, 0.08);
@@ -110,31 +108,30 @@ input::placeholder, textarea::placeholder {
   margin-bottom: 14px;
 }
 
-.landing-title {
+.connect-title {
   font-family: var(--serif);
-  font-size: clamp(2rem, 3.2vw, 3rem);
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
   line-height: 1.1;
   font-style: italic;
   font-weight: 400;
   color: #f1f1eb;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
-.landing-subtitle {
+.connect-subtitle {
   color: var(--text2);
-  font-size: 15px;
-  line-height: 1.65;
-  max-width: 58ch;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
-.landing-join-form {
-  margin-top: 22px;
+.connect-form {
+  margin-top: 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.landing-label {
+.connect-label {
   color: var(--text3);
   font-size: 11px;
   letter-spacing: 0.09em;
@@ -142,20 +139,20 @@ input::placeholder, textarea::placeholder {
   font-family: var(--mono);
 }
 
-.landing-join-row {
+.connect-row {
   display: flex;
   gap: 10px;
   align-items: stretch;
 }
 
-.landing-input {
+.connect-input {
   flex: 1;
   min-width: 0;
   height: 44px;
   border-radius: 10px;
 }
 
-.landing-btn {
+.connect-btn {
   border-radius: 10px;
   height: 44px;
   padding: 0 14px;
@@ -165,66 +162,39 @@ input::placeholder, textarea::placeholder {
   border: 1px solid transparent;
 }
 
-.landing-btn-primary {
+.connect-btn-primary {
   background: var(--accent);
   color: #0f1110;
   font-weight: 600;
 }
 
-.landing-btn-primary:hover {
+.connect-btn-primary:hover {
   background: #d7fb79;
 }
 
-.landing-btn-secondary {
+.connect-btn-secondary {
   background: var(--bg3);
   border-color: var(--border2);
   color: var(--text2);
 }
 
-.landing-btn-secondary:hover {
+.connect-btn-secondary:hover {
   border-color: rgba(255, 255, 255, 0.25);
   color: var(--text);
 }
 
-.landing-link-preview {
+.connect-link-preview {
   margin-top: 14px;
   color: var(--text3);
   font-size: 12px;
   line-height: 1.55;
 }
 
-.landing-link-preview span {
+.connect-link-preview span {
   color: var(--text2);
   font-family: var(--mono);
   font-size: 11px;
   word-break: break-all;
-}
-
-.landing-features {
-  display: grid;
-  gap: 10px;
-}
-
-.landing-feature {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.012);
-  padding: 16px;
-}
-
-.landing-feature h2 {
-  font-size: 13px;
-  font-family: var(--mono);
-  letter-spacing: 0.06em;
-  color: #eff0ea;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.landing-feature p {
-  color: var(--text2);
-  font-size: 13px;
-  line-height: 1.6;
 }
 
 /* ── Markdown preview ─────────────────────────────────────── */
@@ -358,27 +328,24 @@ input::placeholder, textarea::placeholder {
 }
 
 @media (max-width: 640px) {
-  .landing-shell {
-    grid-template-columns: 1fr;
-    align-content: start;
-    gap: 16px;
+  .connect-shell {
     padding: 16px;
   }
 
-  .landing-card {
+  .connect-dialog {
     padding: 18px;
   }
 
-  .landing-subtitle {
+  .connect-subtitle {
     font-size: 14px;
   }
 
-  .landing-join-row {
+  .connect-row {
     flex-direction: column;
   }
 
-  .landing-btn,
-  .landing-input {
+  .connect-btn,
+  .connect-input {
     width: 100%;
     height: 42px;
   }
