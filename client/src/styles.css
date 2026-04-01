@@ -126,14 +126,6 @@ input::placeholder, textarea::placeholder {
   text-transform: uppercase;
 }
 
-.name-input {
-  max-width: 180px;
-  height: 28px;
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 4px 8px;
-}
-
 .presence-badges {
   display: flex;
   gap: 8px;
@@ -142,22 +134,6 @@ input::placeholder, textarea::placeholder {
   font-size: 11px;
   font-family: var(--mono);
   margin-right: auto;
-}
-
-.presence-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  max-width: 130px;
-  padding: 0 7px;
-  border: 1px solid var(--border2);
-  border-radius: 999px;
-  font-size: 10px;
-  line-height: 1;
-  color: var(--text2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .topbar-actions {
@@ -243,19 +219,6 @@ input::placeholder, textarea::placeholder {
   animation: pulse 1.3s ease-in-out infinite;
 }
 
-.server-toolbar {
-  min-height: 38px;
-  padding-top: 5px;
-  padding-bottom: 5px;
-}
-
-.server-input {
-  min-width: 260px;
-  height: 28px;
-  padding: 0 8px;
-  font-size: 11px;
-}
-
 .toolbar {
   height: 40px;
   display: flex;
@@ -290,10 +253,6 @@ input::placeholder, textarea::placeholder {
   font-size: 11px;
   font-family: var(--mono);
   color: var(--text2);
-}
-
-.server-toolbar .toolbar-btn {
-  min-width: 130px;
 }
 
 .toolbar-btn:hover {
@@ -382,11 +341,6 @@ input::placeholder, textarea::placeholder {
     gap: 6px !important;
   }
 
-  .name-input {
-    max-width: none;
-    flex: 1;
-  }
-
   .topbar-action {
     min-height: 34px;
   }
@@ -448,10 +402,6 @@ input::placeholder, textarea::placeholder {
     flex-wrap: wrap;
   }
 
-  .server-input {
-    min-width: 100%;
-  }
-
   .toolbar-btn {
     min-height: 34px;
   }
@@ -461,15 +411,8 @@ input::placeholder, textarea::placeholder {
     display: none;
   }
 
-  .name-input {
-    width: 100%;
-    max-width: 100%;
-    order: 1;
-  }
-
   .presence-badges {
     width: 100%;
-    order: 2;
   }
 
   .preview {
