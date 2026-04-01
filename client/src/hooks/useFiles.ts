@@ -4,16 +4,17 @@ import { getServerUrl } from '../config'
 export interface WorkspaceFile {
   name: string
   path: string
+  room?: string
 }
 
-export function useFiles() {
+export function useFiles(room: string) {
   const [files, setFiles] = useState<WorkspaceFile[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`${getServerUrl()}/files`)
+      const res = await fetch(`${getServerUrl()}/files?room=${encodeURIComponent(room)}`)
       if (!res.ok) throw new Error(`Server returned ${res.status}`)
       const data: unknown = await res.json()
       setFiles(Array.isArray(data) ? (data as WorkspaceFile[]) : [])
@@ -24,7 +25,7 @@ export function useFiles() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [room])
 
   useEffect(() => {
     void refresh()
@@ -35,7 +36,7 @@ export function useFiles() {
       const res = await fetch(`${getServerUrl()}/files`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name, room })
       })
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string }
@@ -45,15 +46,21 @@ export function useFiles() {
       await refresh()
       return file
     },
-    [refresh]
+    [refresh, room]
   )
 
   const deleteFile = useCallback(
     async (name: string) => {
-      await fetch(`${getServerUrl()}/files/${encodeURIComponent(name)}`, { method: 'DELETE' })
+      const res = await fetch(`${getServerUrl()}/files/${encodeURIComponent(name)}?room=${encodeURIComponent(room)}`, {
+        method: 'DELETE'
+      })
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(err.error || 'Delete failed')
+      }
       await refresh()
     },
-    [refresh]
+    [refresh, room]
   )
 
   return { files, loading, error, refresh, createFile, deleteFile }

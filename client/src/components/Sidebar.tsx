@@ -7,7 +7,10 @@ export interface SidebarProps {
   loading: boolean
   filesError: string | null
   activeFile: string | null
+  room: string
   userName: string
+  onChangeRoom: (room: string) => void
+  onCopyShareLink: () => void | Promise<void>
   onRenameUser: (name: string) => void
   onSelect: (name: string) => void
   onCreate: (name: string) => Promise<WorkspaceFile>
@@ -20,7 +23,10 @@ export default function Sidebar({
   loading,
   filesError,
   activeFile,
+  room,
   userName,
+  onChangeRoom,
+  onCopyShareLink,
   onRenameUser,
   onSelect,
   onCreate,
@@ -32,6 +38,18 @@ export default function Sidebar({
   const [error, setError] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(userName)
+  const [roomDraft, setRoomDraft] = useState(room)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    setRoomDraft(room)
+  }, [room])
+
+  useEffect(() => {
+    if (!copied) return
+    const id = window.setTimeout(() => setCopied(false), 1200)
+    return () => window.clearTimeout(id)
+  }, [copied])
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault()
@@ -115,6 +133,71 @@ export default function Sidebar({
           +
         </button>
       </div>
+
+      <form
+        onSubmit={e => {
+          e.preventDefault()
+          onChangeRoom(roomDraft)
+        }}
+        style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}
+      >
+        <label
+          style={{
+            display: 'block',
+            fontFamily: 'var(--mono)',
+            fontSize: 10,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--text3)',
+            marginBottom: 6
+          }}
+        >
+          Room link
+        </label>
+        <input
+          value={roomDraft}
+          onChange={e => setRoomDraft(e.target.value)}
+          placeholder="lobby"
+          aria-label="Room"
+          style={{ marginBottom: 6, fontSize: 12, padding: '6px 8px' }}
+        />
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            type="submit"
+            style={{
+              flex: 1,
+              height: 26,
+              background: 'var(--bg4)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              fontFamily: 'var(--mono)',
+              fontSize: 11,
+              color: 'var(--text2)'
+            }}
+          >
+            join
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              await onCopyShareLink()
+              setCopied(true)
+            }}
+            style={{
+              flex: 1,
+              height: 26,
+              background: 'var(--bg4)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              fontFamily: 'var(--mono)',
+              fontSize: 11,
+              color: copied ? 'var(--accent)' : 'var(--text2)'
+            }}
+          >
+            {copied ? 'copied' : 'copy link'}
+          </button>
+        </div>
+      </form>
 
       {filesError && (
         <div

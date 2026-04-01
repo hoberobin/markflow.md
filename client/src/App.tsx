@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { yCollab } from 'y-codemirror.next'
@@ -12,6 +13,7 @@ import Sidebar from './components/Sidebar'
 import { useFiles } from './hooks/useFiles'
 import { getWsUrl, getServerUrl } from './config'
 import type { PresencePeer } from './types'
+import { readRoomFromLocation, sanitizeRoomId, writeRoomToLocation } from './utils/room'
 
 const COLORS = ['#c8f060', '#60c8f0', '#f060c8', '#f0c860', '#60f0c8', '#f06060', '#c860f0']
 
@@ -27,6 +29,7 @@ function randomName(): string {
 }
 
 interface CollabEditorProps {
+  room: string
   fileName: string
   userName: string
   onContentChange?: (text: string) => void
@@ -35,6 +38,7 @@ interface CollabEditorProps {
 
 // ── Collaborative Editor ──────────────────────────────────────────────────────
 function CollabEditor({
+  room,
   fileName,
   userName,
   onContentChange,
@@ -47,7 +51,8 @@ function CollabEditor({
 
     const ydoc = new Y.Doc()
     const ytext = ydoc.getText('content')
-    const provider = new WebsocketProvider(getWsUrl(), encodeURIComponent(fileName), ydoc)
+    const roomPath = `${encodeURIComponent(room)}/${encodeURIComponent(fileName)}`
+    const provider = new WebsocketProvider(getWsUrl(), roomPath, ydoc)
 
     provider.awareness.setLocalStateField('user', { name: userName, color: getColor(userName) })
     provider.awareness.setLocalStateField('file', fileName)
@@ -101,13 +106,14 @@ function CollabEditor({
       provider.destroy()
       ydoc.destroy()
     }
-  }, [fileName, userName])
+  }, [room, fileName, userName])
 
   return <div ref={containerRef} style={{ height: '100%', overflow: 'hidden' }} />
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [room, setRoom] = useState(() => readRoomFromLocation())
   const [userName, setUserName] = useState(() => {
     const saved = localStorage.getItem('mf_name')
     if (saved) return saved
@@ -119,12 +125,19 @@ export default function App() {
   const [content, setContent] = useState('')
   const [preview, setPreview] = useState(false)
   const [presence, setPresence] = useState<PresencePeer[]>([])
-  const { files, loading, error: filesError, createFile, deleteFile, refresh } = useFiles()
+  const { files, loading, error: filesError, createFile, deleteFile, refresh } = useFiles(room)
 
   useEffect(() => {
     const id = setInterval(() => void refresh(), 5000)
     return () => clearInterval(id)
   }, [refresh])
+
+  useEffect(() => {
+    writeRoomToLocation(room)
+    setActiveFile(null)
+    setContent('')
+    setPresence([])
+  }, [room])
 
   function saveUserName(next: string) {
     const t = (next || '').trim() || randomName()
@@ -134,18 +147,27 @@ export default function App() {
 
   function downloadActiveFile() {
     if (!activeFile) return
-    const url = `${getServerUrl()}/files/${encodeURIComponent(activeFile)}/raw`
+    const url = `${getServerUrl()}/files/${encodeURIComponent(activeFile)}/raw?room=${encodeURIComponent(room)}`
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   function downloadWorkspace() {
-    const url = `${getServerUrl()}/export/workspace.zip`
+    const url = `${getServerUrl()}/export/workspace.zip?room=${encodeURIComponent(room)}`
     window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  async function copyShareLink() {
+    const url = new URL(window.location.href)
+    url.searchParams.set('room', room)
+    await navigator.clipboard.writeText(url.toString())
   }
 
   const activePresence = presence.filter(p => p.file === activeFile)
 
-  const previewHtml = marked.parse(content || '', { async: false }) as string
+  const previewHtml = useMemo(() => {
+    const parsed = marked.parse(content || '', { async: false }) as string
+    return DOMPurify.sanitize(parsed)
+  }, [content])
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
@@ -154,7 +176,10 @@ export default function App() {
         loading={loading}
         filesError={filesError}
         activeFile={activeFile}
+        room={room}
         userName={userName}
+        onChangeRoom={next => setRoom(sanitizeRoomId(next))}
+        onCopyShareLink={copyShareLink}
         onRenameUser={saveUserName}
         onSelect={name => {
           setActiveFile(name)
@@ -288,6 +313,7 @@ export default function App() {
           ) : (
             <CollabEditor
               key={activeFile}
+              room={room}
               fileName={activeFile}
               userName={userName}
               onContentChange={setContent}

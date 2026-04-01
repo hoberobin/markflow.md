@@ -13,8 +13,16 @@ import * as syncProtocol from 'y-protocols/sync.js'
 import * as awarenessProtocol from 'y-protocols/awareness.js'
 import * as encoding from 'lib0/encoding.js'
 import * as decoding from 'lib0/decoding.js'
+import {
+  DEFAULT_ROOM,
+  getDocKey,
+  normalizeMdFilename,
+  parseDocPath,
+  parseRoom,
+  validateExistingMdFilename
+} from './utils/workspace.js'
 
-type MarkflowWebSocket = WebSocket & { markflowAwarenessIds?: Set<number> }
+type MarkflowWebSocket = WebSocket & { markflowAwarenessIds?: Set<number>; markflowDocKey?: string }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const WORKSPACE = path.resolve('/app/workspace')
@@ -43,37 +51,27 @@ app.get('/health', (_req: Request, res: Response) => {
 const docs = new Map<string, Y.Doc>()
 const awareness = new Map<string, awarenessProtocol.Awareness>()
 const docClients = new Map<string, Set<MarkflowWebSocket>>()
+const docReady = new Map<string, Promise<void>>()
 
 const MSG_SYNC = 0
 const MSG_AWARENESS = 1
 const MSG_QUERY_AWARENESS = 3
 
-/** y-websocket uses `wsUrl + '/' + roomName` — room is the path, not ?doc= */
-function docNameFromWebsocketPath(pathname: string): string | null {
-  let segment = pathname.replace(/^\/+/, '')
-  if (!segment) return null
-  try {
-    segment = decodeURIComponent(segment)
-  } catch {
-    return null
-  }
-  if (segment.includes('..') || segment.includes('/') || segment.includes('\\')) return null
-  if (!segment.endsWith('.md')) return null
-  if (path.basename(segment) !== segment) return null
-  return segment
+function getRoomDir(room: string): string {
+  return room === DEFAULT_ROOM ? WS_DIR : path.join(WS_DIR, room)
 }
 
-function sanitizeMdFilename(name: unknown): string | null {
-  const cleaned = String(name || '')
-    .replace(/[^a-zA-Z0-9_\-. ]/g, '')
-    .trim()
-  if (!cleaned) return null
-  return cleaned.endsWith('.md') ? cleaned : `${cleaned}.md`
+function getRoomFilePath(room: string, fileName: string): string {
+  return path.join(getRoomDir(room), fileName)
+}
+
+async function ensureRoomDir(room: string): Promise<void> {
+  await fs.mkdir(getRoomDir(room), { recursive: true })
 }
 
 /** Drop in-memory Yjs state and disconnect clients so they reload from disk */
-function purgeDoc(docName: string): void {
-  const clients = docClients.get(docName)
+function purgeDoc(docKey: string): void {
+  const clients = docClients.get(docKey)
   if (clients && clients.size) {
     for (const ws of [...clients]) {
       try {
@@ -83,9 +81,10 @@ function purgeDoc(docName: string): void {
       }
     }
   }
-  docs.delete(docName)
-  awareness.delete(docName)
-  docClients.delete(docName)
+  docs.delete(docKey)
+  awareness.delete(docKey)
+  docClients.delete(docKey)
+  docReady.delete(docKey)
 }
 
 function peekAwarenessClientIds(update: Uint8Array): number[] {
@@ -104,27 +103,29 @@ function peekAwarenessClientIds(update: Uint8Array): number[] {
   }
 }
 
-function getDoc(docName: string): { doc: Y.Doc; aw: awarenessProtocol.Awareness } {
-  if (!docs.has(docName)) {
+async function getDoc(room: string, fileName: string): Promise<{ doc: Y.Doc; aw: awarenessProtocol.Awareness }> {
+  const docKey = getDocKey(room, fileName)
+  if (!docs.has(docKey)) {
     const doc = new Y.Doc()
     const aw = new awarenessProtocol.Awareness(doc)
-    docs.set(docName, doc)
-    awareness.set(docName, aw)
-    docClients.set(docName, new Set())
+    const filePath = getRoomFilePath(room, fileName)
+    docs.set(docKey, doc)
+    awareness.set(docKey, aw)
+    docClients.set(docKey, new Set())
 
-    const filePath = path.join(WS_DIR, docName)
-    if (existsSync(filePath)) {
-      fs.readFile(filePath, 'utf8')
-        .then(content => {
-          const ytext = doc.getText('content')
-          if (ytext.length === 0) {
-            doc.transact(() => {
-              ytext.insert(0, content)
-            })
-          }
-        })
-        .catch(() => {})
-    }
+    const ready = (async () => {
+      await ensureRoomDir(room)
+      if (!existsSync(filePath)) return
+      const content = await fs.readFile(filePath, 'utf8')
+      const ytext = doc.getText('content')
+      if (ytext.length > 0) return
+      doc.transact(() => {
+        ytext.insert(0, content)
+      })
+    })().catch(err => {
+      console.error('Failed to hydrate document:', docKey, err)
+    })
+    docReady.set(docKey, ready)
 
     doc.on('update', () => {
       const content = doc.getText('content').toString()
@@ -132,7 +133,7 @@ function getDoc(docName: string): { doc: Y.Doc; aw: awarenessProtocol.Awareness 
     })
 
     aw.on('update', ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }) => {
-      const clients = docClients.get(docName) || new Set()
+      const clients = docClients.get(docKey) || new Set()
       const changedClients = [...added, ...updated, ...removed]
       const encoder = encoding.createEncoder()
       encoding.writeVarUint(encoder, MSG_AWARENESS)
@@ -143,21 +144,25 @@ function getDoc(docName: string): { doc: Y.Doc; aw: awarenessProtocol.Awareness 
       })
     })
   }
-  return { doc: docs.get(docName)!, aw: awareness.get(docName)! }
+  await (docReady.get(docKey) || Promise.resolve())
+  return { doc: docs.get(docKey)!, aw: awareness.get(docKey)! }
 }
 
 // ─── WebSocket handler ────────────────────────────────────────────────────────
-wss.on('connection', (ws: MarkflowWebSocket, req) => {
+wss.on('connection', async (ws: MarkflowWebSocket, req) => {
   const url = new URL(req.url || '/', 'http://localhost')
-  const docName = docNameFromWebsocketPath(url.pathname)
-  if (!docName) {
+  const docPath = parseDocPath(url.pathname)
+  if (!docPath) {
     ws.close(4000, 'Invalid document')
     return
   }
+  const { room, fileName } = docPath
+  const docKey = getDocKey(room, fileName)
 
-  const { doc, aw } = getDoc(docName)
-  const clients = docClients.get(docName)!
+  const { doc, aw } = await getDoc(room, fileName)
+  const clients = docClients.get(docKey)!
   clients.add(ws)
+  ws.markflowDocKey = docKey
 
   const encoder = encoding.createEncoder()
   encoding.writeVarUint(encoder, MSG_SYNC)
@@ -211,19 +216,23 @@ wss.on('connection', (ws: MarkflowWebSocket, req) => {
   })
 
   ws.on('close', () => {
-    clients.delete(ws)
+    const connected = ws.markflowDocKey ? docClients.get(ws.markflowDocKey) : clients
+    connected?.delete(ws)
     const ids = ws.markflowAwarenessIds ? [...ws.markflowAwarenessIds] : []
     if (ids.length) awarenessProtocol.removeAwarenessStates(aw, ids, ws)
   })
 })
 
 // ─── REST: file listing ───────────────────────────────────────────────────────
-app.get('/files', async (_req: Request, res: Response) => {
+app.get('/files', async (req: Request, res: Response) => {
+  const room = parseRoom(req.query.room)
+  if (!room) return res.status(400).json({ error: 'Invalid room id' })
   try {
-    const entries = await fs.readdir(WS_DIR, { withFileTypes: true })
+    await ensureRoomDir(room)
+    const entries = await fs.readdir(getRoomDir(room), { withFileTypes: true })
     const files = entries
       .filter(e => e.isFile() && e.name.endsWith('.md'))
-      .map(e => ({ name: e.name, path: e.name }))
+      .map(e => ({ name: e.name, path: e.name, room }))
     res.json(files)
   } catch {
     res.json([])
@@ -231,44 +240,48 @@ app.get('/files', async (_req: Request, res: Response) => {
 })
 
 app.post('/files', async (req: Request, res: Response) => {
-  const { name } = req.body as { name?: string }
+  const { name, room: roomInput } = req.body as { name?: string; room?: string }
+  const room = parseRoom(roomInput)
+  if (!room) return res.status(400).json({ error: 'Invalid room id' })
   if (!name) return res.status(400).json({ error: 'name required' })
-  const safeName = sanitizeMdFilename(name)
+  const safeName = normalizeMdFilename(name)
   if (!safeName) return res.status(400).json({ error: 'Invalid name' })
-  const filePath = path.join(WS_DIR, safeName)
+  await ensureRoomDir(room)
+  const filePath = getRoomFilePath(room, safeName)
   if (existsSync(filePath)) return res.status(409).json({ error: 'File already exists' })
   await fs.writeFile(filePath, `# ${safeName.replace('.md', '')}\n\n`)
-  res.json({ name: safeName })
+  res.json({ name: safeName, room })
 })
 
 app.delete('/files/:name', async (req: Request, res: Response) => {
-  const safeName = path.basename(req.params.name)
-  const filePath = path.join(WS_DIR, safeName)
+  const room = parseRoom(req.query.room)
+  if (!room) return res.status(400).json({ error: 'Invalid room id' })
+  const safeName = validateExistingMdFilename(req.params.name)
+  if (!safeName) return res.status(400).json({ error: 'Invalid file' })
+  const filePath = getRoomFilePath(room, safeName)
   if (!existsSync(filePath)) return res.status(404).json({ error: 'Not found' })
   await fs.unlink(filePath)
-  if (docs.has(safeName)) {
-    docs.delete(safeName)
-    awareness.delete(safeName)
-    docClients.delete(safeName)
-  }
+  purgeDoc(getDocKey(room, safeName))
   res.json({ ok: true })
 })
 
 app.get('/files/:name/raw', async (req: Request, res: Response) => {
-  const safeName = path.basename(req.params.name)
-  if (!safeName.endsWith('.md') || safeName !== sanitizeMdFilename(safeName)) {
-    return res.status(400).json({ error: 'Invalid file' })
-  }
-  const filePath = path.join(WS_DIR, safeName)
+  const room = parseRoom(req.query.room)
+  if (!room) return res.status(400).json({ error: 'Invalid room id' })
+  const safeName = validateExistingMdFilename(req.params.name)
+  if (!safeName) return res.status(400).json({ error: 'Invalid file' })
+  const filePath = getRoomFilePath(room, safeName)
   if (!existsSync(filePath)) return res.status(404).json({ error: 'Not found' })
   res.setHeader('Content-Type', 'text/markdown; charset=utf-8')
   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(safeName)}"`)
   res.sendFile(path.resolve(filePath))
 })
 
-app.get('/export/workspace.zip', async (_req: Request, res: Response) => {
+app.get('/export/workspace.zip', async (req: Request, res: Response) => {
+  const room = parseRoom(req.query.room)
+  if (!room) return res.status(400).json({ error: 'Invalid room id' })
   res.setHeader('Content-Type', 'application/zip')
-  res.setHeader('Content-Disposition', 'attachment; filename="markflow-workspace.zip"')
+  res.setHeader('Content-Disposition', `attachment; filename="markflow-${room}-workspace.zip"`)
 
   const archive = archiver('zip', { zlib: { level: 9 } })
   archive.on('error', err => {
@@ -278,10 +291,12 @@ app.get('/export/workspace.zip', async (_req: Request, res: Response) => {
   archive.pipe(res)
 
   try {
-    const entries = await fs.readdir(WS_DIR, { withFileTypes: true })
+    await ensureRoomDir(room)
+    const roomDir = getRoomDir(room)
+    const entries = await fs.readdir(roomDir, { withFileTypes: true })
     for (const e of entries) {
       if (e.isFile() && e.name.endsWith('.md')) {
-        archive.file(path.join(WS_DIR, e.name), { name: e.name })
+        archive.file(path.join(roomDir, e.name), { name: e.name })
       }
     }
   } catch (err) {
@@ -291,14 +306,17 @@ app.get('/export/workspace.zip', async (_req: Request, res: Response) => {
 })
 
 app.post('/files/import', upload.array('files', 50), async (req: Request, res: Response) => {
+  const room = parseRoom(req.query.room)
+  if (!room) return res.status(400).json({ error: 'Invalid room id' })
   const files = req.files as Express.Multer.File[] | undefined
   if (!files?.length) return res.status(400).json({ error: 'No files uploaded' })
+  await ensureRoomDir(room)
 
   const imported: string[] = []
   const skipped: string[] = []
 
   for (const f of files) {
-    const safeName = sanitizeMdFilename(f.originalname)
+    const safeName = normalizeMdFilename(f.originalname)
     if (!safeName) {
       skipped.push(f.originalname || '(unnamed)')
       continue
@@ -309,13 +327,13 @@ app.post('/files/import', upload.array('files', 50), async (req: Request, res: R
       continue
     }
     const text = body.toString('utf8')
-    const filePath = path.join(WS_DIR, safeName)
+    const filePath = getRoomFilePath(room, safeName)
     await fs.writeFile(filePath, text, 'utf8')
-    purgeDoc(safeName)
+    purgeDoc(getDocKey(room, safeName))
     imported.push(safeName)
   }
 
-  res.json({ imported, skipped })
+  res.json({ imported, skipped, room })
 })
 
 // ─── Start ────────────────────────────────────────────────────────────────────
