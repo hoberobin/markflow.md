@@ -1,18 +1,17 @@
 # markflow.md
 
-**markflow.md** is a real-time collaborative markdown workspace with shareable room links.
+**markflow.md** is a single shared real-time markdown room.
 
-Use it for fast writing sessions, docs jams, and lightweight team note-taking without complex project setup.
+Open the URL and start collaborating instantly. No accounts, no setup flow, no database.
 
 ## Features
 
-- Real-time collaborative markdown editing (Yjs-based CRDT sync)
-- Shareable room links (`?room=<id>`) so collaborators join instantly
-- Room isolation for files, editor state, and exports
+- One shared markdown document for everyone on the same deployment
+- Real-time collaborative editing over WebSocket (Yjs CRDT sync)
 - Live markdown preview
-- Download the active `.md` file
-- Export all room files as a `.zip`
-- Import multiple markdown files into a room
+- Copyable URL for quick sharing
+- Download current shared document as `.md`
+- Zero database dependencies (in-memory server state only)
 
 ## Project status
 
@@ -23,14 +22,7 @@ Use it for fast writing sessions, docs jams, and lightweight team note-taking wi
 - **Client:** React + Vite (`client/`, default port `3000`)
 - **Server:** Node.js + Express + WebSocket (`server/`, default port `4000`)
 - **Collaboration engine:** Yjs + awareness protocol
-- **Database:** SQLite (`better-sqlite3`) for lightweight persistence
-
-## Storage model (fast + lightweight)
-
-- Markflow now stores room/file content in a single SQLite file (`data/markflow.db` by default).
-- On first boot, legacy markdown files from `workspace/` are auto-imported into SQLite.
-- SQLite is ideal for low-ops hosting and Raspberry Pi (single-file DB, no external DB service).
-- You can override the DB location with `DATABASE_PATH`.
+- **Storage:** In-memory only (resets when server restarts)
 
 ## Quick start
 
@@ -49,7 +41,7 @@ Open `http://localhost:3000`.
 ./start.sh
 ```
 
-This script installs dependencies and starts both services.
+This installs dependencies and starts both services.
 
 ## Environment configuration
 
@@ -61,29 +53,12 @@ Copy `.env.example` to `.env` and adjust as needed:
 
 If `VITE_WS_URL` is not set, the client derives it from `VITE_SERVER_URL` (or from the current host + `:4000`).
 
-Optional server env var:
+## Deployment notes
 
-- `DATABASE_PATH=./data/markflow.db`
+- Any host that supports Node + WebSockets will work.
+- Use persistent storage only if you later decide to add it back; current mode is intentionally ephemeral.
 
-## Collaboration model (rooms)
-
-- Default room: `lobby`
-- Room comes from URL query parameter: `?room=my-team`
-- Anyone with the same room link sees the same markdown file set
-
-Examples:
-
-- `https://your-domain/?room=design-review`
-- `https://your-domain/?room=docs-sprint`
-
-## Deploying publicly
-
-The easiest public setup:
-
-- **Frontend:** Netlify
-- **Backend:** Render (or any host supporting HTTPS + WebSocket)
-
-### Deploy server (Render quick path)
+### Render quick path (server)
 
 1. Push this repo to GitHub.
 2. Create a Render Web Service from this repo.
@@ -91,11 +66,9 @@ The easiest public setup:
    - Root directory: `server`
    - Build command: `npm install && npm run build`
    - Start command: `npm start`
-   - Add a Disk (recommended): mount path `/opt/render/project/data`
-   - Env var: `DATABASE_PATH=/opt/render/project/data/markflow.db`
 4. Deploy and copy the HTTPS URL (example: `https://markflow-api.onrender.com`).
 
-### Deploy client (Netlify)
+### Netlify quick path (client)
 
 1. Import this repo in Netlify.
 2. Use:
@@ -105,10 +78,6 @@ The easiest public setup:
 3. Add:
    - `VITE_SERVER_URL=https://<your-render-service>.onrender.com`
 4. Deploy.
-
-Share links like:
-
-- `https://your-netlify-site.netlify.app/?room=team-alpha`
 
 ## Development commands
 
@@ -120,32 +89,12 @@ cd server && npm run dev
 cd client && npm run dev
 ```
 
-Or run both quality checks from the repo root:
+Or run both checks from repo root:
 
 ```bash
 npm run test
 npm run build
 ```
-
-## Raspberry Pi quick deploy (recommended for fastest self-hosting)
-
-Markflow is now SQLite-based, so Pi deployment stays simple:
-
-```bash
-git clone <your-repo-url>
-cd markflow
-cp .env.example .env
-docker-compose up --build -d
-```
-
-Then open:
-
-- `http://<pi-ip>:3000` (client)
-- server runs at `http://<pi-ip>:4000`
-
-Persistent data:
-
-- SQLite DB is stored at `./data/markflow.db` (mounted to `/app/data/markflow.db` in Docker).
 
 ## Testing
 
