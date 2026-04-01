@@ -234,6 +234,28 @@ input::placeholder, textarea::placeholder {
   font-family: var(--mono);
 }
 
+.topbar-status.is-connected {
+  color: var(--accent);
+}
+
+.topbar-status.is-connecting {
+  color: var(--text3);
+  animation: pulse 1.3s ease-in-out infinite;
+}
+
+.server-toolbar {
+  min-height: 38px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.server-input {
+  min-width: 260px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
 .toolbar {
   height: 40px;
   display: flex;
@@ -268,6 +290,10 @@ input::placeholder, textarea::placeholder {
   font-size: 11px;
   font-family: var(--mono);
   color: var(--text2);
+}
+
+.server-toolbar .toolbar-btn {
+  min-width: 130px;
 }
 
 .toolbar-btn:hover {
@@ -420,6 +446,10 @@ input::placeholder, textarea::placeholder {
   .toolbar-group {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .server-input {
+    min-width: 100%;
   }
 
   .toolbar-btn {

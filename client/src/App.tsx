@@ -9,7 +9,7 @@ import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { basicSetup } from 'codemirror'
-import { getServerUrl, getWsUrl } from './config'
+import { checkServerHealth, detectServerUrl, getServerUrl, getWsUrlForServer, setRuntimeServerUrl } from './config'
 import type { PresencePeer } from './types'
 import { SHARED_DOC_KEY } from './utils/collab'
 import { copyCurrentUrl, randomName, readNameFromStorage, saveNameToStorage } from './utils/presence'
@@ -25,12 +25,14 @@ function getColor(name: string): string {
 
 function CollabEditor({
   userName,
+  serverUrl,
   onContentChange,
   onPresenceChange,
   editorViewRef,
   onConnectionChange
 }: {
   userName: string
+  serverUrl: string
   onContentChange: (text: string) => void
   onPresenceChange: (states: PresencePeer[]) => void
   editorViewRef: { current: EditorView | null }
@@ -45,7 +47,7 @@ function CollabEditor({
 
     const ydoc = new Y.Doc()
     const ytext = ydoc.getText('content')
-    const provider = new WebsocketProvider(getWsUrl(), SHARED_DOC_KEY, ydoc)
+    const provider = new WebsocketProvider(getWsUrlForServer(serverUrl), SHARED_DOC_KEY, ydoc)
     providerRef.current = provider
     docRef.current = ydoc
     provider.awareness.setLocalStateField('user', { name: userName, color: getColor(userName) })
@@ -102,7 +104,7 @@ function CollabEditor({
       ydoc.destroy()
       onConnectionChange(false)
     }
-  }, [editorViewRef, onConnectionChange, onContentChange, onPresenceChange])
+  }, [editorViewRef, onConnectionChange, onContentChange, onPresenceChange, serverUrl, userName])
 
   useEffect(() => {
     const provider = providerRef.current
@@ -122,6 +124,9 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'failed'>('idle')
+  const [serverUrl, setServerUrl] = useState(() => getServerUrl())
+  const [serverInput, setServerInput] = useState(() => getServerUrl())
+  const [serverState, setServerState] = useState<'auto' | 'ready' | 'failed'>('auto')
   const editorViewRef = useRef<EditorView | null>(null)
 
   useEffect(() => {
@@ -131,6 +136,23 @@ export default function App() {
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.title = 'markflow.md'
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const detected = await detectServerUrl()
+      if (cancelled) return
+      setServerUrl(detected)
+      setServerInput(detected)
+      setRuntimeServerUrl(detected)
+      setServerState('ready')
+    })().catch(() => {
+      if (!cancelled) setServerState('failed')
+    })
+    return () => {
+      cancelled = true
     }
   }, [])
 
@@ -151,7 +173,7 @@ export default function App() {
   const saveDocument = useCallback(async () => {
     setDownloadState('downloading')
     try {
-      const response = await fetch(`${getServerUrl()}/document/raw`)
+      const response = await fetch(`${serverUrl}/document/raw`)
       if (!response.ok) throw new Error('Failed to download markdown file')
       const markdown = await response.text()
       const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
@@ -168,7 +190,30 @@ export default function App() {
       setDownloadState('failed')
       window.setTimeout(() => setDownloadState('idle'), 1500)
     }
-  }, [setDownloadState])
+  }, [serverUrl])
+
+  const applyServerOverride = useCallback(async () => {
+    const next = serverInput.trim().replace(/\/$/, '')
+    if (!next) {
+      setRuntimeServerUrl(null)
+      const fallback = getServerUrl()
+      setServerUrl(fallback)
+      setServerInput(fallback)
+      setServerState('auto')
+      return
+    }
+
+    const ok = await checkServerHealth(next)
+    if (!ok) {
+      setServerState('failed')
+      return
+    }
+
+    setRuntimeServerUrl(next)
+    setServerUrl(next)
+    setServerInput(next)
+    setServerState('ready')
+  }, [serverInput])
 
   const shareLink = async () => {
     const ok = await copyCurrentUrl()
@@ -256,6 +301,9 @@ export default function App() {
           <span className={`topbar-status ${isConnected ? 'is-connected' : 'is-connecting'}`} aria-live="polite">
             {isConnected ? 'Connected' : 'Connecting'}
           </span>
+          <span className={`topbar-status ${serverState === 'failed' ? 'is-connecting' : 'is-connected'}`} aria-live="polite">
+            {serverState === 'auto' ? 'Detecting backend…' : serverState === 'failed' ? 'Backend unreachable' : 'Backend ready'}
+          </span>
         </div>
         <div className="topbar-actions">
           <div className="mode-switch" role="tablist" aria-label="Editor mode">
@@ -292,6 +340,20 @@ export default function App() {
           </div>
         </div>
       </header>
+      <div className="toolbar server-toolbar" role="group" aria-label="Backend connection settings">
+        <div className="toolbar-group">
+          <input
+            className="server-input"
+            value={serverInput}
+            onChange={e => setServerInput(e.target.value)}
+            placeholder="Backend URL (optional)"
+            aria-label="Backend URL override"
+          />
+          <button type="button" className="toolbar-btn" onClick={applyServerOverride}>
+            Apply backend URL
+          </button>
+        </div>
+      </div>
 
       <div className="toolbar" role="toolbar" aria-label="Markdown formatting tools">
         <div className="toolbar-group">
@@ -378,6 +440,7 @@ export default function App() {
         >
           <CollabEditor
             userName={userName}
+            serverUrl={serverUrl}
             onContentChange={setContent}
             onPresenceChange={setPresence}
             editorViewRef={editorViewRef}
