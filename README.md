@@ -93,6 +93,8 @@ You will end up with links like:
    - Root directory: `server`
    - Build command: `npm install && npm run build`
    - Start command: `npm start`
+   - Add a Disk (recommended): mount path `/opt/render/project/data`
+   - Env var: `DATABASE_PATH=/opt/render/project/data/markflow.db`
 4. Deploy and copy the HTTPS URL (example: `https://markflow-api.onrender.com`).
 
 > Markflow uses WebSockets for real-time sync; Render supports this out of the box.
