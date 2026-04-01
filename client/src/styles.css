@@ -46,6 +46,13 @@ button {
   transition: all 0.15s;
 }
 
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(200, 240, 96, 0.6);
+  outline-offset: 2px;
+}
+
 input, textarea {
   font-family: var(--mono);
   font-size: 13px;
@@ -104,7 +111,10 @@ input::placeholder, textarea::placeholder {
   font-size: 14px !important;
 }
 
-.cm-editor.cm-focused { outline: none !important; }
+.cm-editor.cm-focused {
+  outline: 1px solid rgba(200, 240, 96, 0.35) !important;
+  outline-offset: -1px;
+}
 .cm-scroller { overflow: auto !important; padding: 32px 40px !important; }
 .cm-content { min-height: 100% !important; }
 .cm-line { line-height: 1.8 !important; }

@@ -23,3 +23,8 @@ export function writeRoomToLocation(room: string): void {
   url.searchParams.set('room', next)
   window.history.replaceState(null, '', url.toString())
 }
+
+export function generateRoomId(): string {
+  const seed = Math.random().toString(36).slice(2, 7)
+  return sanitizeRoomId(`room-${seed}`)
+}

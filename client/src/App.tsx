@@ -13,7 +13,7 @@ import Sidebar from './components/Sidebar'
 import { useFiles } from './hooks/useFiles'
 import { getWsUrl, getServerUrl } from './config'
 import type { PresencePeer } from './types'
-import { readRoomFromLocation, sanitizeRoomId, writeRoomToLocation } from './utils/room'
+import { generateRoomId, readRoomFromLocation, sanitizeRoomId, writeRoomToLocation } from './utils/room'
 
 const COLORS = ['#c8f060', '#60c8f0', '#f060c8', '#f0c860', '#60f0c8', '#f06060', '#c860f0']
 
@@ -159,7 +159,11 @@ export default function App() {
   async function copyShareLink() {
     const url = new URL(window.location.href)
     url.searchParams.set('room', room)
-    await navigator.clipboard.writeText(url.toString())
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url.toString())
+      return
+    }
+    window.prompt('Copy this room link:', url.toString())
   }
 
   const activePresence = presence.filter(p => p.file === activeFile)
@@ -179,6 +183,7 @@ export default function App() {
         room={room}
         userName={userName}
         onChangeRoom={next => setRoom(sanitizeRoomId(next))}
+        onGenerateRoom={() => setRoom(generateRoomId())}
         onCopyShareLink={copyShareLink}
         onRenameUser={saveUserName}
         onSelect={name => {
