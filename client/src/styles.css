@@ -16,7 +16,7 @@
   --blue: #5b9cf6;
   --mono: 'DM Mono', monospace;
   --serif: 'Instrument Serif', serif;
-  --sans: 'Geist', sans-serif;
+  --sans: 'Inter', system-ui, sans-serif;
   --radius: 6px;
   --radius-lg: 10px;
 }
@@ -114,3 +114,8 @@ input::placeholder, textarea::placeholder {
 .cm-activeLine { background: rgba(255,255,255,0.02) !important; }
 .cm-yRemoteSelection { border-radius: 1px; }
 .cm-yRemoteSelectionCaret { border-left-width: 2px !important; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.85; }
+}
