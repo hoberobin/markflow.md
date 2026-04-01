@@ -257,7 +257,7 @@ export default function App() {
           >
             ☰
           </button>
-          <span className={`topbar-file ${activeFile ? 'topbar-file-active' : ''}`}>
+          <span className={`topbar-file ${activeFile ? 'is-active' : ''}`}>
             {activeFile || '—'}
           </span>
 
@@ -352,12 +352,12 @@ function RoomConnectDialog({
 
   const roomPreview = sanitizeRoomId(roomDraft || DEFAULT_ROOM)
   const sharePreview =
-    typeof window === 'undefined' ? `https://app.markflow.dev/?room=${roomPreview}` : `${window.location.origin}/?room=${roomPreview}`
+    typeof window === 'undefined' ? `https://markflowmd.com/?room=${roomPreview}` : `${window.location.origin}/?room=${roomPreview}`
 
   return (
     <main className="connect-shell">
       <section className="connect-dialog" role="dialog" aria-modal="true" aria-labelledby="room-connect-title">
-        <div className="connect-badge">MARKFLOW</div>
+        <div className="connect-badge">MARKFLOW.MD</div>
         <h1 id="room-connect-title" className="connect-title">
           Connect to a room
         </h1>

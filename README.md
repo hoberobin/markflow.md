@@ -14,6 +14,10 @@ Use it for fast writing sessions, docs jams, and lightweight team note-taking wi
 - Export all room files as a `.zip`
 - Import multiple markdown files into a room
 
+## Project status
+
+[![CI](https://github.com/hoberobin/markflow/actions/workflows/ci.yml/badge.svg)](https://github.com/hoberobin/markflow/actions/workflows/ci.yml)
+
 ## Architecture
 
 - **Client:** React + Vite (`client/`, default port `3000`)
