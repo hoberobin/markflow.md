@@ -40,7 +40,25 @@ const app = express()
 const server = createServer(app)
 const wss = new WebSocketServer({ server })
 
-app.use(cors())
+const corsOrigins = String(process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(v => v.trim())
+  .filter(Boolean)
+
+app.use(
+  cors(
+    corsOrigins.length
+      ? {
+          origin: (origin, callback) => {
+            // Allow non-browser/health-check calls that may not send Origin.
+            if (!origin) return callback(null, true)
+            if (corsOrigins.includes(origin)) return callback(null, true)
+            return callback(new Error('Not allowed by CORS'))
+          }
+        }
+      : undefined
+  )
+)
 app.use(express.json({ limit: '10mb' }))
 
 app.get('/health', (_req: Request, res: Response) => {

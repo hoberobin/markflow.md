@@ -82,6 +82,8 @@ You will end up with links like:
    - Build command: `npm install && npm run build`
    - Start command: `npm start`
 4. Deploy and copy the HTTPS URL (example: `https://markflow-api.onrender.com`).
+5. Set env var on Render:
+   - `CORS_ORIGIN=https://<your-netlify-site>.netlify.app`
 
 > Markflow uses WebSockets for real-time sync; Render supports this out of the box.
 
@@ -106,6 +108,37 @@ Open your Netlify URL and share:
 - `https://your-netlify-site.netlify.app/?room=docs-sprint`
 
 Anyone with the link joins the same room and collaborates in real time.
+
+## Production setup with your own domain (recommended)
+
+When you have a domain, use:
+
+- App: `https://app.<your-domain>`
+- API: `https://api.<your-domain>`
+
+### 1) Backend domain (Render)
+
+1. Keep backend deployed on Render.
+2. Add custom domain in Render for the service, e.g. `api.<your-domain>`.
+3. Add DNS record in your DNS provider as instructed by Render.
+4. Set backend env var:
+   - `CORS_ORIGIN=https://app.<your-domain>`
+
+### 2) Frontend domain (Netlify)
+
+1. Keep frontend deployed on Netlify.
+2. Add custom domain in Netlify, e.g. `app.<your-domain>`.
+3. Add DNS record in your DNS provider as instructed by Netlify.
+4. Set frontend env var in Netlify:
+   - `VITE_SERVER_URL=https://api.<your-domain>`
+5. Redeploy the site.
+
+### 3) Final share links
+
+Use links like:
+
+- `https://app.<your-domain>/?room=team-alpha`
+- `https://app.<your-domain>/?room=weekly-notes`
 
 ### Reverse proxy essentials (Nginx/Caddy/etc., if self-hosting)
 
