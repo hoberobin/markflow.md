@@ -89,6 +89,24 @@ input::placeholder, textarea::placeholder {
   position: relative;
 }
 
+.workspace-panel {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+}
+
+.workspace-panel.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.workspace-panel.is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
 .single-topbar {
   height: 44px;
   display: flex;
@@ -127,6 +145,39 @@ input::placeholder, textarea::placeholder {
 }
 
 .topbar-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px;
+}
+
+.mode-switch-btn {
+  min-width: 64px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--text2);
+}
+
+.mode-switch-btn.is-active {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.topbar-utility-actions {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
@@ -208,10 +259,25 @@ input::placeholder, textarea::placeholder {
   color: var(--text);
 }
 
+.toolbar-btn:disabled {
+  color: var(--text3);
+  border-color: var(--border);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .toolbar-hint {
   color: var(--text3);
   font-size: 11px;
   font-family: var(--mono);
+}
+
+.toolbar-meta {
+  margin-left: auto;
+  color: var(--text3);
+  font-size: 11px;
+  font-family: var(--mono);
+  white-space: nowrap;
 }
 
 /* ── Markdown preview ─────────────────────────────────────── */
@@ -283,10 +349,19 @@ input::placeholder, textarea::placeholder {
     min-height: 34px;
   }
 
+  .mode-switch-btn {
+    min-height: 30px;
+  }
+
   .toolbar {
     height: auto;
     min-height: 40px;
     padding: 8px 12px;
+  }
+
+  .toolbar-meta {
+    width: 100%;
+    margin-left: 0;
   }
 }
 
@@ -296,9 +371,29 @@ input::placeholder, textarea::placeholder {
   }
 
   .topbar-action {
-    width: 100%;
+    width: calc(50% - 3px);
     justify-content: center;
     min-height: 38px !important;
+  }
+
+  .topbar-actions {
+    width: 100%;
+  }
+
+  .mode-switch {
+    width: 100%;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .mode-switch-btn {
+    flex: 1;
+    min-height: 36px;
+  }
+
+  .topbar-utility-actions {
+    width: 100%;
   }
 
   .toolbar {
@@ -313,6 +408,11 @@ input::placeholder, textarea::placeholder {
 
   .toolbar-btn {
     min-height: 34px;
+  }
+
+  .toolbar-sep,
+  .toolbar-hint {
+    display: none;
   }
 
   .name-input {

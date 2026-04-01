@@ -137,6 +137,15 @@ export default function App() {
     return DOMPurify.sanitize(parsed)
   }, [content])
 
+  const documentStats = useMemo(() => {
+    const trimmed = content.trim()
+    return {
+      words: trimmed ? trimmed.split(/\s+/).length : 0,
+      lines: content.length ? content.split('\n').length : 1,
+      chars: content.length
+    }
+  }, [content])
+
   const saveDocument = () => {
     window.open(`${getServerUrl()}/document/raw`, '_blank', 'noopener,noreferrer')
   }
@@ -175,10 +184,23 @@ export default function App() {
   }, [focusEditor])
 
   useEffect(() => {
+    if (preview) return
+    const rafId = window.requestAnimationFrame(() => {
+      focusEditor()
+    })
+    return () => window.cancelAnimationFrame(rafId)
+  }, [focusEditor, preview])
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const mod = event.metaKey || event.ctrlKey
-      if (!mod || preview) return
       const key = event.key.toLowerCase()
+      if (mod && event.shiftKey && key === 'p') {
+        event.preventDefault()
+        setPreview(v => !v)
+        return
+      }
+      if (!mod || preview) return
       if (key === 'b') {
         event.preventDefault()
         formatSelection('bold')
@@ -211,26 +233,38 @@ export default function App() {
           </span>
         </div>
         <div className="topbar-actions">
-          <button
-            className={`topbar-action ${!preview ? 'is-active' : ''}`}
-            type="button"
-            onClick={() => setPreview(false)}
-          >
-            Edit
-          </button>
-          <button
-            className={`topbar-action ${preview ? 'is-active' : ''}`}
-            type="button"
-            onClick={() => setPreview(true)}
-          >
-            Preview
-          </button>
-          <button className="topbar-action" type="button" onClick={shareLink}>
-            {copyState === 'copied' ? 'Copied URL' : copyState === 'failed' ? 'Copy failed' : 'Copy URL'}
-          </button>
-          <button className="topbar-action" type="button" onClick={saveDocument}>
-            Download .md
-          </button>
+          <div className="mode-switch" role="tablist" aria-label="Editor mode">
+            <button
+              id="editor-tab"
+              role="tab"
+              aria-controls="editor-panel"
+              aria-selected={!preview}
+              className={`mode-switch-btn ${!preview ? 'is-active' : ''}`}
+              type="button"
+              onClick={() => setPreview(false)}
+            >
+              Edit
+            </button>
+            <button
+              id="preview-tab"
+              role="tab"
+              aria-controls="preview-panel"
+              aria-selected={preview}
+              className={`mode-switch-btn ${preview ? 'is-active' : ''}`}
+              type="button"
+              onClick={() => setPreview(true)}
+            >
+              Preview
+            </button>
+          </div>
+          <div className="topbar-utility-actions">
+            <button className="topbar-action" type="button" onClick={shareLink}>
+              {copyState === 'copied' ? 'Copied URL' : copyState === 'failed' ? 'Copy failed' : 'Copy URL'}
+            </button>
+            <button className="topbar-action" type="button" onClick={saveDocument}>
+              Download .md
+            </button>
+          </div>
         </div>
       </header>
 
@@ -241,6 +275,7 @@ export default function App() {
             className="toolbar-btn"
             onClick={() => formatSelection('bold')}
             title="Bold (Ctrl/Cmd+B)"
+            disabled={preview}
           >
             B
           </button>
@@ -249,36 +284,73 @@ export default function App() {
             className="toolbar-btn"
             onClick={() => formatSelection('italic')}
             title="Italic (Ctrl/Cmd+I)"
+            disabled={preview}
           >
             I
           </button>
-          <button type="button" className="toolbar-btn" onClick={() => formatSelection('code')} title="Inline code">
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => formatSelection('code')}
+            title="Inline code"
+            disabled={preview}
+          >
             {'</>'}
           </button>
-          <button type="button" className="toolbar-btn" onClick={() => formatPrefix('# ')} title="Heading">
+          <button type="button" className="toolbar-btn" onClick={() => formatPrefix('# ')} title="Heading" disabled={preview}>
             H1
           </button>
-          <button type="button" className="toolbar-btn" onClick={() => formatPrefix('- ')} title="Bulleted list">
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => formatPrefix('- ')}
+            title="Bulleted list"
+            disabled={preview}
+          >
             • List
           </button>
-          <button type="button" className="toolbar-btn" onClick={() => formatPrefix('1. ')} title="Numbered list">
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => formatPrefix('1. ')}
+            title="Numbered list"
+            disabled={preview}
+          >
             1. List
           </button>
-          <button type="button" className="toolbar-btn" onClick={() => formatPrefix('> ')} title="Blockquote">
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => formatPrefix('> ')}
+            title="Blockquote"
+            disabled={preview}
+          >
             Quote
           </button>
-          <button type="button" className="toolbar-btn" onClick={insertLink} title="Insert link (Ctrl/Cmd+K)">
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={insertLink}
+            title="Insert link (Ctrl/Cmd+K)"
+            disabled={preview}
+          >
             Link
           </button>
         </div>
         <div className="toolbar-sep" aria-hidden="true" />
         <div className="toolbar-hint">Markdown helper toolbar</div>
+        <div className="toolbar-meta" aria-live="polite">
+          {documentStats.words} words · {documentStats.lines} lines · {documentStats.chars} chars
+        </div>
       </div>
 
       <div className="workspace-content">
-        {preview ? (
-          <div className="preview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
-        ) : (
+        <div
+          id="editor-panel"
+          role="tabpanel"
+          aria-labelledby="editor-tab"
+          className={`workspace-panel workspace-panel-editor ${preview ? 'is-hidden' : 'is-active'}`}
+        >
           <CollabEditor
             userName={userName}
             onContentChange={setContent}
@@ -286,7 +358,14 @@ export default function App() {
             editorViewRef={editorViewRef}
             onConnectionChange={setIsConnected}
           />
-        )}
+        </div>
+        <div
+          id="preview-panel"
+          role="tabpanel"
+          aria-labelledby="preview-tab"
+          className={`workspace-panel preview workspace-panel-preview ${preview ? 'is-active' : 'is-hidden'}`}
+          dangerouslySetInnerHTML={{ __html: previewHtml }}
+        />
       </div>
     </div>
   )
