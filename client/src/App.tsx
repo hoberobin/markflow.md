@@ -206,7 +206,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div className="app-shell">
       <button
         type="button"
         className="mobile-sidebar-toggle"
@@ -246,20 +246,8 @@ export default function App() {
         createFormSignal={createFormSignal}
       />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <header
-          className="topbar"
-          style={{
-            height: 44,
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 16px',
-            gap: 8,
-            background: 'var(--bg2)',
-            borderBottom: '1px solid var(--border)',
-            flexShrink: 0
-          }}
-        >
+      <div className="workspace-main">
+        <header className="topbar">
           <button
             type="button"
             className="mobile-inline-toggle"
@@ -269,22 +257,11 @@ export default function App() {
           >
             ☰
           </button>
-          <span
-            className="topbar-file"
-            style={{
-              fontFamily: 'var(--mono)',
-              fontSize: 12,
-              color: activeFile ? 'var(--text2)' : 'var(--text3)',
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}
-          >
+          <span className={`topbar-file ${activeFile ? 'topbar-file-active' : ''}`}>
             {activeFile || '—'}
           </span>
 
-          <div className="topbar-avatars" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <div className="topbar-avatars">
             {activePresence.map(p => (
               <Avatar key={p.clientId} name={p.name} color={p.color} />
             ))}
@@ -322,22 +299,6 @@ export default function App() {
               type="button"
               onClick={downloadActiveFile}
               disabled={!activeFile}
-              style={{
-                height: 28,
-                padding: '0 10px',
-                background: 'var(--bg4)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                fontSize: 11,
-                fontFamily: 'var(--mono)',
-                color: activeFile ? 'var(--text2)' : 'var(--text3)',
-                letterSpacing: '0.06em',
-                transition: 'all 0.15s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                opacity: activeFile ? 1 : 0.65
-              }}
             >
               save .md
             </button>
@@ -345,27 +306,13 @@ export default function App() {
               className="topbar-action"
               type="button"
               onClick={downloadWorkspace}
-              style={{
-                height: 28,
-                padding: '0 10px',
-                background: 'var(--bg4)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                fontSize: 11,
-                fontFamily: 'var(--mono)',
-                color: 'var(--text2)',
-                letterSpacing: '0.06em',
-                transition: 'all 0.15s',
-                display: 'flex',
-                alignItems: 'center'
-              }}
             >
               download zip
             </button>
           </div>
         </header>
 
-        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <div className="workspace-content">
           {!activeFile ? (
             <Empty onOpenCreateForm={() => setCreateFormSignal(n => n + 1)} />
           ) : preview ? (
@@ -494,24 +441,16 @@ function IconBtn({
   children: ReactNode
   className?: string
 }) {
+  const classes = ['icon-btn']
+  if (className) classes.push(className)
+  if (active) classes.push('icon-btn-active')
+
   return (
     <button
-      className={className}
+      className={classes.join(' ')}
       type="button"
       onClick={onClick}
       title={title}
-      style={{
-        width: 28,
-        height: 28,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 'var(--radius)',
-        background: active ? 'var(--bg4)' : 'transparent',
-        border: active ? '1px solid var(--border)' : '1px solid transparent',
-        color: active ? 'var(--text)' : 'var(--text3)',
-        transition: 'all 0.1s'
-      }}
     >
       {children}
     </button>
@@ -520,35 +459,16 @@ function IconBtn({
 
 function Empty({ onOpenCreateForm }: { onOpenCreateForm: () => void }) {
   return (
-    <div
-      style={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
-        color: 'var(--text3)'
-      }}
-    >
-      <div style={{ fontFamily: 'var(--serif)', fontSize: '2.4rem', fontStyle: 'italic', opacity: 0.3 }}>
+    <div className="empty-state">
+      <div className="empty-state-title">
         markflow
       </div>
-      <div style={{ fontSize: 13 }}>
+      <div className="empty-state-subtitle">
         Pick a file or{' '}
         <button
           type="button"
           onClick={onOpenCreateForm}
-          style={{
-            color: 'var(--accent)',
-            fontFamily: 'var(--mono)',
-            fontSize: 13,
-            textDecoration: 'underline',
-            cursor: 'pointer',
-            background: 'none',
-            border: 'none',
-            padding: 0
-          }}
+          className="empty-state-link"
         >
           create one
         </button>

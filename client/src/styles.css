@@ -197,6 +197,233 @@ input::placeholder, textarea::placeholder {
   word-break: break-all;
 }
 
+/* ── Workspace layout ───────────────────────────────────────── */
+.app-shell {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.workspace-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.workspace-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.topbar {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.topbar-file {
+  font-family: var(--mono);
+  font-size: 12px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-file.is-active {
+  color: var(--text2);
+}
+
+.topbar-file:not(.is-active) {
+  color: var(--text3);
+}
+
+.topbar-avatars {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.topbar-action {
+  height: 28px;
+  padding: 0 10px;
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.topbar-action:disabled {
+  color: var(--text3);
+  opacity: 0.65;
+}
+
+.topbar-action:not(:disabled) {
+  color: var(--text2);
+}
+
+.empty-state {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text3);
+  padding: 20px;
+  text-align: center;
+}
+
+.empty-state-title {
+  font-family: var(--serif);
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-style: italic;
+  opacity: 0.3;
+}
+
+.empty-state-subtitle {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.empty-state-link {
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 13px;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* ── Sidebar refinements ────────────────────────────────────── */
+.workspace-sidebar {
+  width: 220px !important;
+  min-width: 220px !important;
+}
+
+.sidebar-new-file-btn {
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.sidebar-room-input,
+.sidebar-create-input,
+.sidebar-name-input {
+  min-height: 34px;
+}
+
+.sidebar-room-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sidebar-room-btn {
+  min-height: 30px;
+}
+
+.sidebar-file-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  border-left: 2px solid transparent;
+  transition: all 0.1s;
+}
+
+.sidebar-file-row.is-active {
+  background: var(--bg3);
+  border-left-color: var(--accent);
+}
+
+.sidebar-file-select {
+  flex: 1;
+  text-align: left;
+  background: transparent;
+  border-radius: 4px;
+  padding: 2px 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 24px;
+}
+
+.sidebar-file-row.is-active .sidebar-file-select {
+  color: var(--text);
+}
+
+.sidebar-file-delete {
+  min-width: 26px;
+  min-height: 26px;
+}
+
+/* ── Delete dialog ──────────────────────────────────────────── */
+.delete-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 30;
+}
+
+.delete-dialog-panel {
+  width: 100%;
+  max-width: 320px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.delete-dialog-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.delete-dialog-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+}
+
+.delete-dialog-cancel {
+  border: 1px solid var(--border);
+  color: var(--text2);
+}
+
+.delete-dialog-confirm {
+  border: 1px solid rgba(255, 107, 91, 0.35);
+  background: rgba(255, 107, 91, 0.12);
+  color: var(--coral);
+}
+
 /* ── Markdown preview ─────────────────────────────────────── */
 .preview {
   font-family: var(--sans);
@@ -296,6 +523,29 @@ input::placeholder, textarea::placeholder {
     gap: 6px !important;
   }
 
+  .workspace-main {
+    width: 100%;
+  }
+
+  .workspace-sidebar {
+    width: min(88vw, 360px) !important;
+    min-width: min(88vw, 360px) !important;
+  }
+
+  .sidebar-header,
+  .sidebar-room-form,
+  .sidebar-create-form,
+  .sidebar-footer {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .sidebar-room-btn,
+  .sidebar-file-delete,
+  .sidebar-new-file-btn {
+    min-height: 34px;
+  }
+
   .mobile-inline-toggle {
     display: none !important;
   }
@@ -316,6 +566,10 @@ input::placeholder, textarea::placeholder {
 
   .topbar-action {
     order: 3;
+  }
+
+  .delete-dialog-panel {
+    max-width: 360px;
   }
 }
 
@@ -350,10 +604,14 @@ input::placeholder, textarea::placeholder {
     height: 42px;
   }
 
+  .app-shell {
+    height: 100dvh;
+  }
+
   .topbar-action {
     width: 100%;
     justify-content: center;
-    min-height: 34px !important;
+    min-height: 38px !important;
   }
 
   .topbar-sep {
@@ -362,6 +620,56 @@ input::placeholder, textarea::placeholder {
 
   .topbar-avatars {
     margin-left: auto;
+  }
+
+  .sidebar-room-actions {
+    flex-direction: column;
+  }
+
+  .sidebar-room-btn {
+    width: 100%;
+    min-height: 38px;
+    font-size: 12px !important;
+  }
+
+  .sidebar-file-row {
+    padding: 6px 10px 6px 12px !important;
+    gap: 8px !important;
+  }
+
+  .sidebar-file-select {
+    min-height: 28px;
+    font-size: 13px !important;
+  }
+
+  .sidebar-file-delete {
+    min-width: 30px;
+    min-height: 30px;
+    font-size: 16px !important;
+  }
+
+  .sidebar-name-button {
+    font-size: 12px !important;
+    min-height: 30px;
+  }
+
+  .delete-dialog-overlay {
+    padding: 12px;
+  }
+
+  .delete-dialog-panel {
+    max-width: none;
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .delete-dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .delete-dialog-btn {
+    width: 100%;
+    min-height: 38px;
   }
 
   .preview {
