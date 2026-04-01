@@ -48,6 +48,7 @@ function CollabEditor({
     const provider = new WebsocketProvider(getWsUrl(), SHARED_DOC_KEY, ydoc)
     providerRef.current = provider
     docRef.current = ydoc
+    provider.awareness.setLocalStateField('user', { name: userName, color: getColor(userName) })
 
     const applyPresence = () => {
       const states: PresencePeer[] = []
@@ -120,6 +121,7 @@ export default function App() {
   const [presence, setPresence] = useState<PresencePeer[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'failed'>('idle')
   const editorViewRef = useRef<EditorView | null>(null)
 
   useEffect(() => {
@@ -146,9 +148,27 @@ export default function App() {
     }
   }, [content])
 
-  const saveDocument = () => {
-    window.open(`${getServerUrl()}/document/raw`, '_blank', 'noopener,noreferrer')
-  }
+  const saveDocument = useCallback(async () => {
+    setDownloadState('downloading')
+    try {
+      const response = await fetch(`${getServerUrl()}/document/raw`)
+      if (!response.ok) throw new Error('Failed to download markdown file')
+      const markdown = await response.text()
+      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
+      const downloadUrl = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = downloadUrl
+      anchor.download = `${SHARED_DOC_KEY}.md`
+      document.body.appendChild(anchor)
+      anchor.click()
+      document.body.removeChild(anchor)
+      URL.revokeObjectURL(downloadUrl)
+      setDownloadState('idle')
+    } catch {
+      setDownloadState('failed')
+      window.setTimeout(() => setDownloadState('idle'), 1500)
+    }
+  }, [])
 
   const shareLink = async () => {
     const ok = await copyCurrentUrl()
@@ -228,7 +248,12 @@ export default function App() {
         />
         <div className="presence-badges">
           <span>{presence.length + 1} online</span>
-          <span className="topbar-status" aria-live="polite">
+          {presence.slice(0, 3).map(peer => (
+            <span key={peer.clientId} className="presence-chip" style={{ borderColor: peer.color }}>
+              {peer.name}
+            </span>
+          ))}
+          <span className={`topbar-status ${isConnected ? 'is-connected' : 'is-connecting'}`} aria-live="polite">
             {isConnected ? 'Connected' : 'Connecting'}
           </span>
         </div>
@@ -261,8 +286,8 @@ export default function App() {
             <button className="topbar-action" type="button" onClick={shareLink}>
               {copyState === 'copied' ? 'Copied URL' : copyState === 'failed' ? 'Copy failed' : 'Copy URL'}
             </button>
-            <button className="topbar-action" type="button" onClick={saveDocument}>
-              Download .md
+            <button className="topbar-action" type="button" onClick={saveDocument} disabled={downloadState === 'downloading'}>
+              {downloadState === 'downloading' ? 'Downloading...' : downloadState === 'failed' ? 'Download failed' : 'Download .md'}
             </button>
           </div>
         </div>

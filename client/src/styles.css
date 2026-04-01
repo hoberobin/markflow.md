@@ -144,6 +144,22 @@ input::placeholder, textarea::placeholder {
   margin-right: auto;
 }
 
+.presence-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  max-width: 130px;
+  padding: 0 7px;
+  border: 1px solid var(--border2);
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .topbar-actions {
   display: flex;
   gap: 6px;
