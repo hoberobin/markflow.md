@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useMemo, type ReactNode } from 'react'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import * as Y from 'yjs'
 import { WebsocketProvider } from 'y-websocket'
 import { yCollab } from 'y-codemirror.next'
@@ -12,6 +13,7 @@ import Sidebar from './components/Sidebar'
 import { useFiles } from './hooks/useFiles'
 import { getWsUrl, getServerUrl } from './config'
 import type { PresencePeer } from './types'
+import { generateRoomId, readRoomFromLocation, sanitizeRoomId, writeRoomToLocation } from './utils/room'
 
 const COLORS = ['#c8f060', '#60c8f0', '#f060c8', '#f0c860', '#60f0c8', '#f06060', '#c860f0']
 
@@ -27,6 +29,7 @@ function randomName(): string {
 }
 
 interface CollabEditorProps {
+  room: string
   fileName: string
   userName: string
   onContentChange?: (text: string) => void
@@ -35,6 +38,7 @@ interface CollabEditorProps {
 
 // ── Collaborative Editor ──────────────────────────────────────────────────────
 function CollabEditor({
+  room,
   fileName,
   userName,
   onContentChange,
@@ -47,7 +51,8 @@ function CollabEditor({
 
     const ydoc = new Y.Doc()
     const ytext = ydoc.getText('content')
-    const provider = new WebsocketProvider(getWsUrl(), encodeURIComponent(fileName), ydoc)
+    const roomPath = `${encodeURIComponent(room)}/${encodeURIComponent(fileName)}`
+    const provider = new WebsocketProvider(getWsUrl(), roomPath, ydoc)
 
     provider.awareness.setLocalStateField('user', { name: userName, color: getColor(userName) })
     provider.awareness.setLocalStateField('file', fileName)
@@ -101,13 +106,15 @@ function CollabEditor({
       provider.destroy()
       ydoc.destroy()
     }
-  }, [fileName, userName])
+  }, [room, fileName, userName])
 
   return <div ref={containerRef} style={{ height: '100%', overflow: 'hidden' }} />
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
+  const [room, setRoom] = useState(() => readRoomFromLocation())
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [userName, setUserName] = useState(() => {
     const saved = localStorage.getItem('mf_name')
     if (saved) return saved
@@ -119,12 +126,28 @@ export default function App() {
   const [content, setContent] = useState('')
   const [preview, setPreview] = useState(false)
   const [presence, setPresence] = useState<PresencePeer[]>([])
-  const { files, loading, error: filesError, createFile, deleteFile, refresh } = useFiles()
+  const { files, loading, error: filesError, createFile, deleteFile, refresh } = useFiles(room)
 
   useEffect(() => {
     const id = setInterval(() => void refresh(), 5000)
     return () => clearInterval(id)
   }, [refresh])
+
+  useEffect(() => {
+    writeRoomToLocation(room)
+    setActiveFile(null)
+    setContent('')
+    setPresence([])
+  }, [room])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const media = window.matchMedia('(max-width: 900px)')
+    const apply = () => setSidebarOpen(!media.matches)
+    apply()
+    media.addEventListener('change', apply)
+    return () => media.removeEventListener('change', apply)
+  }, [])
 
   function saveUserName(next: string) {
     const t = (next || '').trim() || randomName()
@@ -134,31 +157,60 @@ export default function App() {
 
   function downloadActiveFile() {
     if (!activeFile) return
-    const url = `${getServerUrl()}/files/${encodeURIComponent(activeFile)}/raw`
+    const url = `${getServerUrl()}/files/${encodeURIComponent(activeFile)}/raw?room=${encodeURIComponent(room)}`
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   function downloadWorkspace() {
-    const url = `${getServerUrl()}/export/workspace.zip`
+    const url = `${getServerUrl()}/export/workspace.zip?room=${encodeURIComponent(room)}`
     window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  async function copyShareLink() {
+    const url = new URL(window.location.href)
+    url.searchParams.set('room', room)
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url.toString())
+      return
+    }
+    window.prompt('Copy this room link:', url.toString())
   }
 
   const activePresence = presence.filter(p => p.file === activeFile)
 
-  const previewHtml = marked.parse(content || '', { async: false }) as string
+  const previewHtml = useMemo(() => {
+    const parsed = marked.parse(content || '', { async: false }) as string
+    return DOMPurify.sanitize(parsed)
+  }, [content])
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+      <button
+        type="button"
+        className="mobile-sidebar-toggle"
+        onClick={() => setSidebarOpen(prev => !prev)}
+        aria-expanded={sidebarOpen}
+        aria-label={sidebarOpen ? 'Close workspace sidebar' : 'Open workspace sidebar'}
+      >
+        {sidebarOpen ? 'Close' : 'Files'}
+      </button>
       <Sidebar
+        mobileOpen={sidebarOpen}
+        onCloseMobile={() => setSidebarOpen(false)}
         files={files}
         loading={loading}
         filesError={filesError}
         activeFile={activeFile}
+        room={room}
         userName={userName}
+        onChangeRoom={next => setRoom(sanitizeRoomId(next))}
+        onGenerateRoom={() => setRoom(generateRoomId())}
+        onCopyShareLink={copyShareLink}
         onRenameUser={saveUserName}
         onSelect={name => {
           setActiveFile(name)
           setContent('')
+          if (window.matchMedia('(max-width: 900px)').matches) setSidebarOpen(false)
         }}
         onCreate={createFile}
         onDelete={async name => {
@@ -173,6 +225,7 @@ export default function App() {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <header
+          className="topbar"
           style={{
             height: 44,
             display: 'flex',
@@ -184,7 +237,17 @@ export default function App() {
             flexShrink: 0
           }}
         >
+          <button
+            type="button"
+            className="mobile-inline-toggle"
+            onClick={() => setSidebarOpen(prev => !prev)}
+            aria-expanded={sidebarOpen}
+            aria-label="Toggle workspace sidebar"
+          >
+            ☰
+          </button>
           <span
+            className="topbar-file"
             style={{
               fontFamily: 'var(--mono)',
               fontSize: 12,
@@ -198,16 +261,16 @@ export default function App() {
             {activeFile || '—'}
           </span>
 
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <div className="topbar-avatars" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             {activePresence.map(p => (
               <Avatar key={p.clientId} name={p.name} color={p.color} />
             ))}
             <Avatar name={userName} color={getColor(userName)} self />
           </div>
 
-          <Sep />
+          <Sep className="topbar-sep" />
 
-          <IconBtn active={!preview} onClick={() => setPreview(false)} title="Edit">
+          <IconBtn active={!preview} onClick={() => setPreview(false)} title="Edit" className="topbar-icon">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
               <path
                 d="M1.5 2h4v9h-4zM7.5 2h4v9h-4z"
@@ -217,7 +280,7 @@ export default function App() {
               />
             </svg>
           </IconBtn>
-          <IconBtn active={preview} onClick={() => setPreview(true)} title="Preview">
+          <IconBtn active={preview} onClick={() => setPreview(true)} title="Preview" className="topbar-icon">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
               <path
                 d="M1 6.5S3 2 6.5 2 12 6.5 12 6.5 10 11 6.5 11 1 6.5 1 6.5z"
@@ -228,51 +291,55 @@ export default function App() {
             </svg>
           </IconBtn>
 
-          <Sep />
+          <Sep className="topbar-sep" />
 
-          <button
-            type="button"
-            onClick={downloadActiveFile}
-            disabled={!activeFile}
-            style={{
-              height: 28,
-              padding: '0 10px',
-              background: 'var(--bg4)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              fontSize: 11,
-              fontFamily: 'var(--mono)',
-              color: activeFile ? 'var(--text2)' : 'var(--text3)',
-              letterSpacing: '0.06em',
-              transition: 'all 0.15s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              opacity: activeFile ? 1 : 0.65
-            }}
-          >
-            save .md
-          </button>
-          <button
-            type="button"
-            onClick={downloadWorkspace}
-            style={{
-              height: 28,
-              padding: '0 10px',
-              background: 'var(--bg4)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              fontSize: 11,
-              fontFamily: 'var(--mono)',
-              color: 'var(--text2)',
-              letterSpacing: '0.06em',
-              transition: 'all 0.15s',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-          >
-            download zip
-          </button>
+          <div className="topbar-actions">
+            <button
+              className="topbar-action"
+              type="button"
+              onClick={downloadActiveFile}
+              disabled={!activeFile}
+              style={{
+                height: 28,
+                padding: '0 10px',
+                background: 'var(--bg4)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                fontSize: 11,
+                fontFamily: 'var(--mono)',
+                color: activeFile ? 'var(--text2)' : 'var(--text3)',
+                letterSpacing: '0.06em',
+                transition: 'all 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                opacity: activeFile ? 1 : 0.65
+              }}
+            >
+              save .md
+            </button>
+            <button
+              className="topbar-action"
+              type="button"
+              onClick={downloadWorkspace}
+              style={{
+                height: 28,
+                padding: '0 10px',
+                background: 'var(--bg4)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                fontSize: 11,
+                fontFamily: 'var(--mono)',
+                color: 'var(--text2)',
+                letterSpacing: '0.06em',
+                transition: 'all 0.15s',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              download zip
+            </button>
+          </div>
         </header>
 
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
@@ -288,6 +355,7 @@ export default function App() {
           ) : (
             <CollabEditor
               key={activeFile}
+              room={room}
               fileName={activeFile}
               userName={userName}
               onContentChange={setContent}
@@ -326,23 +394,26 @@ function Avatar({ name, color, self }: { name: string; color: string; self?: boo
   )
 }
 
-function Sep() {
-  return <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 2px' }} />
+function Sep({ className }: { className?: string }) {
+  return <div className={className} style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 2px' }} />
 }
 
 function IconBtn({
   active,
   onClick,
   title,
-  children
+  children,
+  className
 }: {
   active: boolean
   onClick: () => void
   title: string
   children: ReactNode
+  className?: string
 }) {
   return (
     <button
+      className={className}
       type="button"
       onClick={onClick}
       title={title}

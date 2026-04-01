@@ -7,7 +7,13 @@ export interface SidebarProps {
   loading: boolean
   filesError: string | null
   activeFile: string | null
+  room: string
   userName: string
+  onChangeRoom: (room: string) => void
+  onGenerateRoom: () => void
+  onCopyShareLink: () => void | Promise<void>
+  mobileOpen: boolean
+  onCloseMobile: () => void
   onRenameUser: (name: string) => void
   onSelect: (name: string) => void
   onCreate: (name: string) => Promise<WorkspaceFile>
@@ -20,7 +26,13 @@ export default function Sidebar({
   loading,
   filesError,
   activeFile,
+  room,
   userName,
+  onChangeRoom,
+  onGenerateRoom,
+  onCopyShareLink,
+  mobileOpen,
+  onCloseMobile,
   onRenameUser,
   onSelect,
   onCreate,
@@ -32,6 +44,33 @@ export default function Sidebar({
   const [error, setError] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(userName)
+  const [roomDraft, setRoomDraft] = useState(room)
+  const [copied, setCopied] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<WorkspaceFile | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
+  useEffect(() => {
+    setRoomDraft(room)
+  }, [room])
+
+  useEffect(() => {
+    if (!copied) return
+    const id = window.setTimeout(() => setCopied(false), 1200)
+    return () => window.clearTimeout(id)
+  }, [copied])
+
+  useEffect(() => {
+    if (!deleteTarget) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape' && !deleteBusy) {
+        setDeleteTarget(null)
+        setDeleteError('')
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [deleteTarget, deleteBusy])
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault()
@@ -51,6 +90,20 @@ export default function Sidebar({
     if (!editingName) setNameDraft(userName)
   }, [userName, editingName])
 
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    setDeleteBusy(true)
+    setDeleteError('')
+    try {
+      await onDelete(deleteTarget.name)
+      setDeleteTarget(null)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Delete failed')
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
+
   const filePresence: Record<string, PresencePeer[]> = {}
   presence.forEach(p => {
     if (p.file) {
@@ -60,18 +113,20 @@ export default function Sidebar({
   })
 
   return (
-    <aside
-      style={{
-        width: 220,
-        minWidth: 220,
-        background: 'var(--bg2)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        overflow: 'hidden'
-      }}
-    >
+    <>
+      <aside
+        className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}
+        style={{
+          width: 220,
+          minWidth: 220,
+          background: 'var(--bg2)',
+          borderRight: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          overflow: 'hidden'
+        }}
+      >
       <div
         style={{
           padding: '16px 16px 12px',
@@ -115,6 +170,94 @@ export default function Sidebar({
           +
         </button>
       </div>
+
+      <form
+        onSubmit={e => {
+          e.preventDefault()
+          onChangeRoom(roomDraft)
+        }}
+        style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}
+      >
+        <label
+          style={{
+            display: 'block',
+            fontFamily: 'var(--mono)',
+            fontSize: 10,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--text3)',
+            marginBottom: 6
+          }}
+        >
+          Room link
+        </label>
+        <input
+          value={roomDraft}
+          onChange={e => setRoomDraft(e.target.value)}
+          placeholder="lobby"
+          aria-label="Room"
+          style={{ marginBottom: 6, fontSize: 12, padding: '6px 8px' }}
+        />
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            type="submit"
+            style={{
+              flex: 1,
+              height: 26,
+              background: 'var(--bg4)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              fontFamily: 'var(--mono)',
+              fontSize: 11,
+              color: 'var(--text2)'
+            }}
+          >
+            join
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await onCopyShareLink()
+                setCopied(true)
+              } catch {
+                setCopied(false)
+              }
+            }}
+            style={{
+              flex: 1,
+              height: 26,
+              background: 'var(--bg4)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              fontFamily: 'var(--mono)',
+              fontSize: 11,
+              color: copied ? 'var(--accent)' : 'var(--text2)'
+            }}
+          >
+            {copied ? 'copied' : 'copy link'}
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            onGenerateRoom()
+          }}
+          style={{
+            marginTop: 6,
+            width: '100%',
+            height: 26,
+            background: 'transparent',
+            border: '1px dashed var(--border2)',
+            borderRadius: 'var(--radius)',
+            fontFamily: 'var(--mono)',
+            fontSize: 11,
+            color: 'var(--text2)'
+          }}
+        >
+          new room
+        </button>
+      </form>
 
       {filesError && (
         <div
@@ -172,7 +315,10 @@ export default function Sidebar({
             file={f}
             active={activeFile === f.name}
             onSelect={() => onSelect(f.name)}
-            onDelete={() => void onDelete(f.name)}
+            onRequestDelete={() => {
+              setDeleteTarget(f)
+              setDeleteError('')
+            }}
             users={filePresence[f.name] || []}
           />
         ))}
@@ -248,7 +394,22 @@ export default function Sidebar({
           </div>
         )}
       </div>
-    </aside>
+      {deleteTarget && (
+        <DeleteDialog
+          fileName={deleteTarget.name}
+          busy={deleteBusy}
+          error={deleteError}
+          onCancel={() => {
+            if (deleteBusy) return
+            setDeleteTarget(null)
+            setDeleteError('')
+          }}
+          onConfirm={() => void confirmDelete()}
+        />
+      )}
+      </aside>
+      {mobileOpen && <button className="sidebar-backdrop" type="button" onClick={onCloseMobile} aria-label="Close sidebar" />}
+    </>
   )
 }
 
@@ -256,45 +417,48 @@ function FileRow({
   file,
   active,
   onSelect,
-  onDelete,
+  onRequestDelete,
   users
 }: {
   file: WorkspaceFile
   active: boolean
   onSelect: () => void
-  onDelete: () => void
+  onRequestDelete: () => void
   users: PresencePeer[]
 }) {
-  const [hovered, setHovered] = useState(false)
-
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       style={{
         display: 'flex',
         alignItems: 'center',
-        padding: '6px 12px',
-        cursor: 'pointer',
-        background: active ? 'var(--bg3)' : hovered ? 'rgba(255,255,255,0.03)' : 'transparent',
+        gap: 6,
+        padding: '4px 8px 4px 10px',
+        background: active ? 'var(--bg3)' : 'transparent',
         borderLeft: active ? '2px solid var(--accent)' : '2px solid transparent',
         transition: 'all 0.1s'
       }}
     >
-      <span
+      <button
+        type="button"
         onClick={onSelect}
+        aria-current={active ? 'page' : undefined}
         style={{
           flex: 1,
+          textAlign: 'left',
+          background: 'transparent',
+          borderRadius: 4,
+          padding: '2px 0',
           fontFamily: 'var(--mono)',
           fontSize: 12,
           color: active ? 'var(--text)' : 'var(--text2)',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap'
+          whiteSpace: 'nowrap',
+          minHeight: 24
         }}
       >
         {file.name}
-      </span>
+      </button>
 
       {users.length > 0 && (
         <div style={{ display: 'flex', gap: 2, marginRight: 4 }}>
@@ -312,19 +476,113 @@ function FileRow({
         </div>
       )}
 
-      {hovered && (
-        <button
-          type="button"
-          onClick={e => {
-            e.stopPropagation()
-            if (confirm(`Delete ${file.name}?`)) onDelete()
+      <button
+        type="button"
+        onClick={onRequestDelete}
+        style={{
+          color: 'var(--text3)',
+          fontSize: 14,
+          lineHeight: 1,
+          width: 22,
+          height: 22,
+          borderRadius: 4,
+          border: '1px solid transparent'
+        }}
+        aria-label={`Delete ${file.name}`}
+        title={`Delete ${file.name}`}
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
+function DeleteDialog({
+  fileName,
+  busy,
+  error,
+  onCancel,
+  onConfirm
+}: {
+  fileName: string
+  busy: boolean
+  error: string
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Delete ${fileName}`}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        zIndex: 30
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 320,
+          background: 'var(--bg2)',
+          border: '1px solid var(--border2)',
+          borderRadius: 'var(--radius-lg)',
+          padding: 14
+        }}
+      >
+        <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6 }}>Delete this file?</div>
+        <div
+          style={{
+            fontFamily: 'var(--mono)',
+            fontSize: 12,
+            color: 'var(--text2)',
+            wordBreak: 'break-word',
+            marginBottom: 12
           }}
-          style={{ color: 'var(--text3)', fontSize: 14, padding: '0 2px', lineHeight: 1 }}
-          title="Delete"
         >
-          ×
-        </button>
-      )}
+          {fileName}
+        </div>
+        {error && (
+          <div style={{ marginBottom: 10, color: 'var(--coral)', fontFamily: 'var(--mono)', fontSize: 11 }}>{error}</div>
+        )}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            style={{
+              height: 28,
+              padding: '0 10px',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              color: 'var(--text2)'
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            style={{
+              height: 28,
+              padding: '0 10px',
+              border: '1px solid rgba(255,107,91,0.35)',
+              borderRadius: 'var(--radius)',
+              background: 'rgba(255,107,91,0.12)',
+              color: 'var(--coral)'
+            }}
+          >
+            {busy ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
