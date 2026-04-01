@@ -228,11 +228,30 @@ Dialog rules:
 
 ## 7.5 Avatars and presence
 
-- Circular `24px` avatars in topbar with deterministic user color
-- Small dots represent collaborator presence in sidebar rows and footer
-- Self avatar gets subtle border differentiation
+- Presence is surfaced in the topbar as compact metadata (`N online`) plus optional collaborator chips.
+- Deterministic user color is retained for collaborator identity.
+- Connection state is explicitly shown (`Connected` / `Connecting`) using text + color treatment, not color alone.
 
-## 7.6 Editor and markdown preview
+## 7.6 Editor toolbar (markdown assist)
+
+To keep writing fast for non-power users while preserving markdown-first editing, Markflow now includes a compact toolbar row above the editor.
+
+Toolbar rules:
+
+- Uses compact chip controls that match topbar utility action language (`--bg4`, `--border`, mono text).
+- Supports one-click insertion for standard markdown patterns:
+  - Heading (`# `)
+  - Bold (`**text**`)
+  - Italic (`_text_`)
+  - Code span (`` `text` ``)
+  - Link (`[text](https://example.com)`)
+  - Quote (`> `)
+  - Unordered list (`- `)
+  - Ordered list (`1. `)
+- Always keep direct keyboard editing as the primary path.
+- Keyboard shortcuts are advertised inline for key actions (bold, italic, code, heading).
+
+## 7.7 Editor and markdown preview
 
 ### Editor (CodeMirror)
 
@@ -256,7 +275,7 @@ Common spacing units in current UI:
 Recommended practice:
 - Use existing values before introducing new ones
 - Prefer 4px-based increments for new controls
-- Preserve vertical density in sidebar and topbar
+- Preserve vertical density in topbar and toolbar rows
 
 ## 9) Responsiveness
 
@@ -268,11 +287,10 @@ Breakpoints in use:
 
 ### Mobile behavior rules
 
-- Sidebar becomes off-canvas with backdrop and toggle button
 - Topbar wraps and reorders content for readability
-- Actions become full-width where needed
+- Utility actions and toolbar controls can become full-width where needed
 - Editor/preview padding is reduced to `18px 16px`
-- Dialog actions stack vertically on small screens
+- Keep formatting tools reachable and finger-friendly (`~34px`+ target size)
 
 ## 10) Accessibility and usability standards
 
@@ -318,8 +336,8 @@ Before merging UI changes, confirm:
 
 The current UI is functional and coherent, but there are known implementation inconsistencies:
 
-1. **Mixed styling strategies**: many Sidebar and dialog styles are inline in TSX while related refinements live in `styles.css`.
-2. **Missing shared class definitions**: some class names used in JSX (for example, `icon-btn`) do not currently have a matching CSS block in `styles.css`.
-3. **Legacy selector remnants**: some sidebar-related selectors in `styles.css` are not currently represented by active JSX structure.
+1. Toolbar interactions currently use simple insertion/toggle helpers and can be improved with richer block-level transforms.
+2. Presence is intentionally lightweight; future work can expand collaborator identity chips while maintaining low visual noise.
+3. Preview and editor remain separate modes; optional split-view could be added if it does not compromise focus at narrow widths.
 
-When touching related areas, prefer incremental consolidation (move repeated inline styles into named classes) without changing user-visible behavior unless explicitly intended.
+When touching related areas, prefer incremental consolidation and keep additions aligned with token and spacing rules in this document.

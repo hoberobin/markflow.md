@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import * as Y from 'yjs'
@@ -13,6 +13,7 @@ import { getServerUrl, getWsUrl } from './config'
 import type { PresencePeer } from './types'
 import { SHARED_DOC_KEY } from './utils/collab'
 import { copyCurrentUrl, randomName, readNameFromStorage, saveNameToStorage } from './utils/presence'
+import { applyMarkdownWrapper, applyMarkdownPrefix, applyMarkdownLink } from './utils/markdownFormat'
 
 const COLORS = ['#c8f060', '#60c8f0', '#f060c8', '#f0c860', '#60f0c8', '#f06060', '#c860f0']
 
@@ -25,11 +26,15 @@ function getColor(name: string): string {
 function CollabEditor({
   userName,
   onContentChange,
-  onPresenceChange
+  onPresenceChange,
+  editorViewRef,
+  onConnectionChange
 }: {
   userName: string
   onContentChange: (text: string) => void
   onPresenceChange: (states: PresencePeer[]) => void
+  editorViewRef: { current: EditorView | null }
+  onConnectionChange: (connected: boolean) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const providerRef = useRef<WebsocketProvider | null>(null)
@@ -55,6 +60,9 @@ function CollabEditor({
     }
 
     provider.awareness.on('change', applyPresence)
+    provider.on('status', event => {
+      onConnectionChange(event.status === 'connected')
+    })
     ytext.observe(() => onContentChange(ytext.toString()))
     onContentChange(ytext.toString())
     applyPresence()
@@ -82,15 +90,18 @@ function CollabEditor({
     })
 
     const view = new EditorView({ state, parent: containerRef.current })
+    editorViewRef.current = view
 
     return () => {
       providerRef.current = null
       docRef.current = null
+      editorViewRef.current = null
       view.destroy()
       provider.destroy()
       ydoc.destroy()
+      onConnectionChange(false)
     }
-  }, [onContentChange, onPresenceChange])
+  }, [editorViewRef, onConnectionChange, onContentChange, onPresenceChange])
 
   useEffect(() => {
     const provider = providerRef.current
@@ -107,7 +118,9 @@ export default function App() {
   const [content, setContent] = useState('')
   const [preview, setPreview] = useState(false)
   const [presence, setPresence] = useState<PresencePeer[]>([])
+  const [isConnected, setIsConnected] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const editorViewRef = useRef<EditorView | null>(null)
 
   useEffect(() => {
     saveNameToStorage(userName)
@@ -134,6 +147,53 @@ export default function App() {
     window.setTimeout(() => setCopyState('idle'), 1400)
   }
 
+  const focusEditor = useCallback(() => {
+    editorViewRef.current?.focus()
+  }, [])
+
+  const formatSelection = useCallback((kind: 'bold' | 'italic' | 'code') => {
+    const view = editorViewRef.current
+    if (!view) return
+    if (kind === 'bold') applyMarkdownWrapper(view, '**', '**')
+    if (kind === 'italic') applyMarkdownWrapper(view, '*', '*')
+    if (kind === 'code') applyMarkdownWrapper(view, '`', '`')
+    focusEditor()
+  }, [focusEditor])
+
+  const formatPrefix = useCallback((prefix: string) => {
+    const view = editorViewRef.current
+    if (!view) return
+    applyMarkdownPrefix(view, prefix)
+    focusEditor()
+  }, [focusEditor])
+
+  const insertLink = useCallback(() => {
+    const view = editorViewRef.current
+    if (!view) return
+    applyMarkdownLink(view)
+    focusEditor()
+  }, [focusEditor])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const mod = event.metaKey || event.ctrlKey
+      if (!mod || preview) return
+      const key = event.key.toLowerCase()
+      if (key === 'b') {
+        event.preventDefault()
+        formatSelection('bold')
+      } else if (key === 'i') {
+        event.preventDefault()
+        formatSelection('italic')
+      } else if (key === 'k') {
+        event.preventDefault()
+        insertLink()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [formatSelection, insertLink, preview])
+
   return (
     <div className="single-app">
       <header className="single-topbar">
@@ -146,12 +206,23 @@ export default function App() {
         />
         <div className="presence-badges">
           <span>{presence.length + 1} online</span>
+          <span className="topbar-status" aria-live="polite">
+            {isConnected ? 'Connected' : 'Connecting'}
+          </span>
         </div>
         <div className="topbar-actions">
-          <button className="topbar-action" type="button" onClick={() => setPreview(false)}>
+          <button
+            className={`topbar-action ${!preview ? 'is-active' : ''}`}
+            type="button"
+            onClick={() => setPreview(false)}
+          >
             Edit
           </button>
-          <button className="topbar-action" type="button" onClick={() => setPreview(true)}>
+          <button
+            className={`topbar-action ${preview ? 'is-active' : ''}`}
+            type="button"
+            onClick={() => setPreview(true)}
+          >
             Preview
           </button>
           <button className="topbar-action" type="button" onClick={shareLink}>
@@ -163,11 +234,58 @@ export default function App() {
         </div>
       </header>
 
+      <div className="toolbar" role="toolbar" aria-label="Markdown formatting tools">
+        <div className="toolbar-group">
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => formatSelection('bold')}
+            title="Bold (Ctrl/Cmd+B)"
+          >
+            B
+          </button>
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => formatSelection('italic')}
+            title="Italic (Ctrl/Cmd+I)"
+          >
+            I
+          </button>
+          <button type="button" className="toolbar-btn" onClick={() => formatSelection('code')} title="Inline code">
+            {'</>'}
+          </button>
+          <button type="button" className="toolbar-btn" onClick={() => formatPrefix('# ')} title="Heading">
+            H1
+          </button>
+          <button type="button" className="toolbar-btn" onClick={() => formatPrefix('- ')} title="Bulleted list">
+            • List
+          </button>
+          <button type="button" className="toolbar-btn" onClick={() => formatPrefix('1. ')} title="Numbered list">
+            1. List
+          </button>
+          <button type="button" className="toolbar-btn" onClick={() => formatPrefix('> ')} title="Blockquote">
+            Quote
+          </button>
+          <button type="button" className="toolbar-btn" onClick={insertLink} title="Insert link (Ctrl/Cmd+K)">
+            Link
+          </button>
+        </div>
+        <div className="toolbar-sep" aria-hidden="true" />
+        <div className="toolbar-hint">Markdown helper toolbar</div>
+      </div>
+
       <div className="workspace-content">
         {preview ? (
           <div className="preview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
         ) : (
-          <CollabEditor userName={userName} onContentChange={setContent} onPresenceChange={setPresence} />
+          <CollabEditor
+            userName={userName}
+            onContentChange={setContent}
+            onPresenceChange={setPresence}
+            editorViewRef={editorViewRef}
+            onConnectionChange={setIsConnected}
+          />
         )}
       </div>
     </div>
