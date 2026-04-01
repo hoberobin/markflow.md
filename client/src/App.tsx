@@ -446,7 +446,7 @@ function Empty({ onOpenCreateForm }: { onOpenCreateForm: () => void }) {
       }}
     >
       <div style={{ fontFamily: 'var(--serif)', fontSize: '2.4rem', fontStyle: 'italic', opacity: 0.3 }}>
-        markflow
+        markflow.md
       </div>
       <div style={{ fontSize: 13 }}>
         Pick a file or{' '}

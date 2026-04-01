@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: markflow-api
+    name: markflowmd-api
     runtime: node
     rootDir: server
     buildCommand: npm install && npm run build

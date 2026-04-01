@@ -1,5 +1,5 @@
 #!/bin/bash
-# Markflow quick start — runs client + server without Docker
+# markflow.md quick start — runs client + server without Docker
 # Usage: ./start.sh
 
 set -e
@@ -16,7 +16,7 @@ echo "Installing client dependencies..."
 cd client && npm install --silent && cd ..
 
 echo ""
-echo "Starting Markflow..."
+echo "Starting markflow.md..."
 echo "  Client → http://localhost:3000"
 echo "  Server → http://localhost:4000"
 echo ""

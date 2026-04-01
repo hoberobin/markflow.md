@@ -1,5 +1,5 @@
 {
-  "name": "markflow-server",
+  "name": "markflow-md-server",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
