@@ -126,6 +126,7 @@ export default function App() {
   const [content, setContent] = useState('')
   const [preview, setPreview] = useState(false)
   const [presence, setPresence] = useState<PresencePeer[]>([])
+  const [createFormSignal, setCreateFormSignal] = useState(0)
   const { files, loading, error: filesError, createFile, deleteFile, refresh } = useFiles(room)
 
   useEffect(() => {
@@ -221,6 +222,7 @@ export default function App() {
           }
         }}
         presence={presence}
+        createFormSignal={createFormSignal}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -344,12 +346,7 @@ export default function App() {
 
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
           {!activeFile ? (
-            <Empty
-              onNew={async () => {
-                const f = await createFile('untitled')
-                setActiveFile(f.name)
-              }}
-            />
+            <Empty onOpenCreateForm={() => setCreateFormSignal(n => n + 1)} />
           ) : preview ? (
             <div className="preview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
           ) : (
@@ -435,7 +432,7 @@ function IconBtn({
   )
 }
 
-function Empty({ onNew }: { onNew: () => void | Promise<void> }) {
+function Empty({ onOpenCreateForm }: { onOpenCreateForm: () => void }) {
   return (
     <div
       style={{
@@ -455,12 +452,16 @@ function Empty({ onNew }: { onNew: () => void | Promise<void> }) {
         Pick a file or{' '}
         <button
           type="button"
-          onClick={() => void onNew()}
+          onClick={onOpenCreateForm}
           style={{
             color: 'var(--accent)',
             fontFamily: 'var(--mono)',
             fontSize: 13,
-            textDecoration: 'underline'
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            background: 'none',
+            border: 'none',
+            padding: 0
           }}
         >
           create one

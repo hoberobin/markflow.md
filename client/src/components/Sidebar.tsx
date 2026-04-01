@@ -19,6 +19,8 @@ export interface SidebarProps {
   onCreate: (name: string) => Promise<WorkspaceFile>
   onDelete: (name: string) => void | Promise<void>
   presence: PresencePeer[]
+  /** Increment to open the new-file form (same as clicking +). */
+  createFormSignal?: number
 }
 
 export default function Sidebar({
@@ -37,7 +39,8 @@ export default function Sidebar({
   onSelect,
   onCreate,
   onDelete,
-  presence
+  presence,
+  createFormSignal = 0
 }: SidebarProps) {
   const [creating, setCreating] = useState(false)
   const [newName, setNewName] = useState('')
@@ -89,6 +92,13 @@ export default function Sidebar({
   useEffect(() => {
     if (!editingName) setNameDraft(userName)
   }, [userName, editingName])
+
+  useEffect(() => {
+    if (createFormSignal === 0) return
+    setCreating(true)
+    setNewName('')
+    setError('')
+  }, [createFormSignal])
 
   async function confirmDelete() {
     if (!deleteTarget) return
@@ -151,6 +161,7 @@ export default function Sidebar({
           type="button"
           onClick={() => {
             setCreating(true)
+            setNewName('')
             setError('')
           }}
           title="New file"
