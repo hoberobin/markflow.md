@@ -168,7 +168,7 @@ export default function App() {
       setDownloadState('failed')
       window.setTimeout(() => setDownloadState('idle'), 1500)
     }
-  }, [])
+  }, [setDownloadState])
 
   const shareLink = async () => {
     const ok = await copyCurrentUrl()
