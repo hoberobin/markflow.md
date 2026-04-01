@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "▸ Markflow setup"
+echo "▸ markflow.md setup"
 
 # Check for .env
 if [ ! -f .env ]; then
@@ -21,6 +21,6 @@ cd ..
 echo ""
 echo "✓ Ready. Run one of:"
 echo ""
-echo "  Docker:  docker-compose up"
+echo "  Docker:  docker compose up"
 echo "  Local:   ./dev.sh"
 echo ""
