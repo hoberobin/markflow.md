@@ -13,7 +13,7 @@ import Sidebar from './components/Sidebar'
 import { useFiles } from './hooks/useFiles'
 import { getWsUrl, getServerUrl } from './config'
 import type { PresencePeer } from './types'
-import { generateRoomId, readRoomFromLocation, sanitizeRoomId, writeRoomToLocation } from './utils/room'
+import { DEFAULT_ROOM, generateRoomId, readRoomFromLocation, sanitizeRoomId, writeRoomToLocation } from './utils/room'
 
 const COLORS = ['#c8f060', '#60c8f0', '#f060c8', '#f0c860', '#60f0c8', '#f06060', '#c860f0']
 
@@ -26,6 +26,11 @@ function getColor(name: string): string {
 const NAMES = ['Ash', 'River', 'Quinn', 'Sage', 'Scout', 'Blake', 'Avery', 'Finley']
 function randomName(): string {
   return NAMES[Math.floor(Math.random() * NAMES.length)]! + Math.floor(Math.random() * 99)
+}
+
+function hasRoomQueryParam(): boolean {
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).has('room')
 }
 
 interface CollabEditorProps {
@@ -114,6 +119,7 @@ function CollabEditor({
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [room, setRoom] = useState(() => readRoomFromLocation())
+  const [workspaceEntered, setWorkspaceEntered] = useState(() => hasRoomQueryParam())
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [userName, setUserName] = useState(() => {
     const saved = localStorage.getItem('mf_name')
@@ -135,11 +141,16 @@ export default function App() {
   }, [refresh])
 
   useEffect(() => {
+    if (!workspaceEntered) return
     writeRoomToLocation(room)
+  }, [room, workspaceEntered])
+
+  useEffect(() => {
+    if (!workspaceEntered) return
     setActiveFile(null)
     setContent('')
     setPresence([])
-  }, [room])
+  }, [room, workspaceEntered])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -183,6 +194,21 @@ export default function App() {
     const parsed = marked.parse(content || '', { async: false }) as string
     return DOMPurify.sanitize(parsed)
   }, [content])
+
+  const openWorkspaceWithRoom = (nextRoom: string) => {
+    setRoom(sanitizeRoomId(nextRoom))
+    setWorkspaceEntered(true)
+  }
+
+  if (!workspaceEntered) {
+    return (
+      <Landing
+        initialRoom={room}
+        onJoinRoom={nextRoom => openWorkspaceWithRoom(nextRoom)}
+        onCreateRoom={() => openWorkspaceWithRoom(generateRoomId())}
+      />
+    )
+  }
 
   return (
     <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
@@ -366,6 +392,86 @@ export default function App() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+function Landing({
+  initialRoom,
+  onJoinRoom,
+  onCreateRoom
+}: {
+  initialRoom: string
+  onJoinRoom: (room: string) => void
+  onCreateRoom: () => void
+}) {
+  const [roomDraft, setRoomDraft] = useState(initialRoom === DEFAULT_ROOM ? '' : initialRoom)
+
+  useEffect(() => {
+    if (initialRoom === DEFAULT_ROOM) return
+    setRoomDraft(initialRoom)
+  }, [initialRoom])
+
+  const roomPreview = sanitizeRoomId(roomDraft || DEFAULT_ROOM)
+  const sharePreview =
+    typeof window === 'undefined' ? `https://app.markflow.dev/?room=${roomPreview}` : `${window.location.origin}/?room=${roomPreview}`
+
+  return (
+    <main className="landing-shell">
+      <section className="landing-card">
+        <div className="landing-badge">MARKFLOW</div>
+        <h1 className="landing-title">Collaborative markdown rooms for teams that move fast.</h1>
+        <p className="landing-subtitle">
+          Spin up a room in seconds, share one link, and edit docs together in real-time from your phone or computer.
+        </p>
+
+        <form
+          className="landing-join-form"
+          onSubmit={e => {
+            e.preventDefault()
+            onJoinRoom(roomDraft || DEFAULT_ROOM)
+          }}
+        >
+          <label htmlFor="landing-room-input" className="landing-label">
+            Room name
+          </label>
+          <div className="landing-join-row">
+            <input
+              id="landing-room-input"
+              value={roomDraft}
+              onChange={e => setRoomDraft(e.target.value)}
+              placeholder="design-review"
+              className="landing-input"
+              autoFocus
+            />
+            <button type="submit" className="landing-btn landing-btn-primary">
+              Join room
+            </button>
+          </div>
+          <button type="button" className="landing-btn landing-btn-secondary" onClick={onCreateRoom}>
+            Create a new room
+          </button>
+        </form>
+
+        <div className="landing-link-preview">
+          Share link preview: <span>{sharePreview}</span>
+        </div>
+      </section>
+
+      <section className="landing-features">
+        <article className="landing-feature">
+          <h2>Live collaboration</h2>
+          <p>Work in the same markdown file with shared presence and instant updates.</p>
+        </article>
+        <article className="landing-feature">
+          <h2>Room-based workspaces</h2>
+          <p>Each room stays isolated, so teams can split docs by project or sprint.</p>
+        </article>
+        <article className="landing-feature">
+          <h2>Mobile-first access</h2>
+          <p>Join from a phone, continue on desktop, and keep the same room link.</p>
+        </article>
+      </section>
+    </main>
+  )
+}
+
 function Avatar({ name, color, self }: { name: string; color: string; self?: boolean }) {
   return (
     <div
