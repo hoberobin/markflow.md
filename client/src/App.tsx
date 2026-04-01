@@ -173,16 +173,6 @@ export default function App() {
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  async function copyShareLink() {
-    const url = new URL(window.location.href)
-    url.searchParams.set('room', room)
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(url.toString())
-      return
-    }
-    window.prompt('Copy this room link:', url.toString())
-  }
-
   const activePresence = presence.filter(p => p.file === activeFile)
 
   const previewHtml = useMemo(() => {
@@ -223,11 +213,7 @@ export default function App() {
         loading={loading}
         filesError={filesError}
         activeFile={activeFile}
-        room={room}
         userName={userName}
-        onChangeRoom={next => setRoom(sanitizeRoomId(next))}
-        onGenerateRoom={() => setRoom(generateRoomId())}
-        onCopyShareLink={copyShareLink}
         onRenameUser={saveUserName}
         onSelect={name => {
           setActiveFile(name)
