@@ -15,6 +15,14 @@ Real-time collaborative markdown editor with shareable room links.
 - **Client**: React + Vite (port 3000)
 - **Server**: Node.js + WebSocket + REST (port 4000)
 - **Sync**: Yjs CRDT
+- **Database**: SQLite (`better-sqlite3`) for lightweight persistence
+
+## Storage model (fast + lightweight)
+
+- Markflow now stores room/file content in a single SQLite file (`data/markflow.db` by default).
+- On first boot, legacy markdown files from `workspace/` are auto-imported into SQLite.
+- SQLite is ideal for low-ops hosting and Raspberry Pi (single-file DB, no external DB service).
+- You can override the DB location with `DATABASE_PATH`.
 
 ## Quick start (Docker)
 
@@ -44,6 +52,10 @@ cd client && npm install && npm run dev
 ```
 
 Optional: set `VITE_SERVER_URL` and `VITE_WS_URL` in `.env` at the repo root if the API is not on `hostname:4000`.
+
+Optional server env var:
+
+- `DATABASE_PATH=./data/markflow.db`
 
 ## Collaboration model (rooms)
 
@@ -112,6 +124,26 @@ Anyone with the link joins the same room and collaborates in real time.
 - Route HTTP API traffic to server `:4000`
 - Forward `Upgrade` + `Connection` headers for websocket paths
 - Use TLS in production (`https`/`wss`)
+
+## Raspberry Pi quick deploy (recommended for fastest self-hosting)
+
+Markflow is now SQLite-based, so Pi deployment stays simple:
+
+```bash
+git clone <your-repo-url>
+cd markflow
+cp .env.example .env
+docker-compose up --build -d
+```
+
+Then open:
+
+- `http://<pi-ip>:3000` (client)
+- server runs at `http://<pi-ip>:4000`
+
+Persistent data:
+
+- SQLite DB is stored at `./data/markflow.db` (mounted to `/app/data/markflow.db` in Docker).
 
 ## Testing
 
