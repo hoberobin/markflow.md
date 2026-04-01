@@ -7,11 +7,7 @@ export interface SidebarProps {
   loading: boolean
   filesError: string | null
   activeFile: string | null
-  room: string
   userName: string
-  onChangeRoom: (room: string) => void
-  onGenerateRoom: () => void
-  onCopyShareLink: () => void | Promise<void>
   mobileOpen: boolean
   onCloseMobile: () => void
   onRenameUser: (name: string) => void
@@ -28,11 +24,7 @@ export default function Sidebar({
   loading,
   filesError,
   activeFile,
-  room,
   userName,
-  onChangeRoom,
-  onGenerateRoom,
-  onCopyShareLink,
   mobileOpen,
   onCloseMobile,
   onRenameUser,
@@ -47,21 +39,9 @@ export default function Sidebar({
   const [error, setError] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(userName)
-  const [roomDraft, setRoomDraft] = useState(room)
-  const [copied, setCopied] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceFile | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
-
-  useEffect(() => {
-    setRoomDraft(room)
-  }, [room])
-
-  useEffect(() => {
-    if (!copied) return
-    const id = window.setTimeout(() => setCopied(false), 1200)
-    return () => window.clearTimeout(id)
-  }, [copied])
 
   useEffect(() => {
     if (!deleteTarget) return
@@ -184,100 +164,6 @@ export default function Sidebar({
           +
         </button>
       </div>
-
-      <form
-        className="sidebar-room-form"
-        onSubmit={e => {
-          e.preventDefault()
-          onChangeRoom(roomDraft)
-        }}
-        style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}
-      >
-        <label
-          className="sidebar-room-label"
-          style={{
-            display: 'block',
-            fontFamily: 'var(--mono)',
-            fontSize: 10,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            color: 'var(--text3)',
-            marginBottom: 6
-          }}
-        >
-          Room link
-        </label>
-        <input
-          className="sidebar-room-input"
-          value={roomDraft}
-          onChange={e => setRoomDraft(e.target.value)}
-          placeholder="lobby"
-          aria-label="Room"
-          style={{ marginBottom: 6, fontSize: 12, padding: '6px 8px' }}
-        />
-        <div className="sidebar-room-actions" style={{ display: 'flex', gap: 6 }}>
-          <button
-            className="sidebar-room-btn"
-            type="submit"
-            style={{
-              flex: 1,
-              height: 26,
-              background: 'var(--bg4)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              fontFamily: 'var(--mono)',
-              fontSize: 11,
-              color: 'var(--text2)'
-            }}
-          >
-            join
-          </button>
-          <button
-            className="sidebar-room-btn sidebar-copy-btn"
-            type="button"
-            onClick={async () => {
-              try {
-                await onCopyShareLink()
-                setCopied(true)
-              } catch {
-                setCopied(false)
-              }
-            }}
-            style={{
-              flex: 1,
-              height: 26,
-              background: 'var(--bg4)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              fontFamily: 'var(--mono)',
-              fontSize: 11,
-              color: copied ? 'var(--accent)' : 'var(--text2)'
-            }}
-          >
-            {copied ? 'copied' : 'copy link'}
-          </button>
-        </div>
-        <button
-          className="sidebar-room-btn sidebar-new-room-btn"
-          type="button"
-          onClick={() => {
-            onGenerateRoom()
-          }}
-          style={{
-            marginTop: 6,
-            width: '100%',
-            height: 26,
-            background: 'transparent',
-            border: '1px dashed var(--border2)',
-            borderRadius: 'var(--radius)',
-            fontFamily: 'var(--mono)',
-            fontSize: 11,
-            color: 'var(--text2)'
-          }}
-        >
-          new room
-        </button>
-      </form>
 
       {filesError && (
         <div
