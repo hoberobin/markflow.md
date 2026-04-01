@@ -6,10 +6,8 @@ import fs from 'fs/promises'
 import { existsSync, mkdirSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import Anthropic from '@anthropic-ai/sdk'
 import multer from 'multer'
 import archiver from 'archiver'
-import { buildClaudeRequest, type ClaudeMode } from './claudePrompts.js'
 import * as Y from 'yjs'
 import * as syncProtocol from 'y-protocols/sync.js'
 import * as awarenessProtocol from 'y-protocols/awareness.js'
@@ -30,7 +28,6 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }
 })
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 const app = express()
 const server = createServer(app)
 const wss = new WebSocketServer({ server })
@@ -39,11 +36,7 @@ app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 
 app.get('/health', (_req: Request, res: Response) => {
-  const key = process.env.ANTHROPIC_API_KEY
-  res.json({
-    ok: true,
-    claude: Boolean(key && String(key).trim().length > 0)
-  })
+  res.json({ ok: true })
 })
 
 // ─── Yjs document store ───────────────────────────────────────────────────────
@@ -323,94 +316,6 @@ app.post('/files/import', upload.array('files', 50), async (req: Request, res: R
   }
 
   res.json({ imported, skipped })
-})
-
-// ─── REST: Claude proxy ───────────────────────────────────────────────────────
-app.post('/claude', async (req: Request, res: Response) => {
-  const { mode, content, selection, instruction, variables, history } = req.body as {
-    mode?: string
-    content?: string
-    selection?: string
-    instruction?: string
-    variables?: Record<string, unknown>
-    history?: unknown
-  }
-
-  const validModes = new Set<ClaudeMode>(['rewrite', 'generate', 'summarize', 'review', 'chat', 'run'])
-  if (!mode || !validModes.has(mode as ClaudeMode)) {
-    return res.status(400).json({ error: 'Invalid mode' })
-  }
-
-  if (mode === 'rewrite' && !selection) {
-    return res.status(400).json({ error: 'Selection required for rewrite mode' })
-  }
-
-  if (!process.env.ANTHROPIC_API_KEY?.trim()) {
-    return res.status(503).json({ error: 'Claude is not configured (missing ANTHROPIC_API_KEY)' })
-  }
-
-  const model = process.env.ANTHROPIC_MODEL?.trim() || 'claude-sonnet-4-20250514'
-  const defaultMaxTokens = Math.min(
-    8192,
-    Math.max(256, parseInt(process.env.CLAUDE_MAX_TOKENS || '4096', 10) || 4096)
-  )
-  const maxDocChars = Math.max(
-    4000,
-    parseInt(process.env.CLAUDE_MAX_DOC_CHARS || '100000', 10) || 100000
-  )
-
-  let systemPrompt: string
-  let messages: Anthropic.Messages.MessageParam[]
-  let maxTokens = defaultMaxTokens
-
-  try {
-    const built = buildClaudeRequest({
-      mode: mode as ClaudeMode,
-      content,
-      selection,
-      instruction,
-      variables,
-      history,
-      maxDocChars,
-      defaultMaxTokens
-    })
-    systemPrompt = built.system
-    messages = built.messages
-    maxTokens = built.maxTokens
-  } catch {
-    return res.status(400).json({ error: 'Invalid mode' })
-  }
-
-  try {
-    const stream = await anthropic.messages.stream({
-      model,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages
-    })
-
-    res.setHeader('Content-Type', 'text/event-stream')
-    res.setHeader('Cache-Control', 'no-cache')
-    res.setHeader('Connection', 'keep-alive')
-
-    for await (const chunk of stream) {
-      if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-        res.write(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`)
-      }
-    }
-    res.write('data: [DONE]\n\n')
-    res.end()
-  } catch (err: unknown) {
-    console.error('Claude error:', err)
-    const message = err instanceof Error ? err.message : 'Claude request failed'
-    if (!res.headersSent) {
-      res.status(500).json({ error: message })
-    } else {
-      res.write(`data: ${JSON.stringify({ error: message })}\n\n`)
-      res.write('data: [DONE]\n\n')
-      res.end()
-    }
-  }
 })
 
 // ─── Start ────────────────────────────────────────────────────────────────────

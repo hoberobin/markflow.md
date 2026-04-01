@@ -7,7 +7,6 @@ set -e
 if [ ! -f .env ]; then
   echo "Creating .env from .env.example..."
   cp .env.example .env
-  echo "⚠  Add your ANTHROPIC_API_KEY to .env before using Claude features"
 fi
 
 echo "Installing server dependencies..."
