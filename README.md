@@ -23,6 +23,14 @@ Use it for fast writing sessions, docs jams, and lightweight team note-taking wi
 - **Client:** React + Vite (`client/`, default port `3000`)
 - **Server:** Node.js + Express + WebSocket (`server/`, default port `4000`)
 - **Collaboration engine:** Yjs + awareness protocol
+- **Database:** SQLite (`better-sqlite3`) for lightweight persistence
+
+## Storage model (fast + lightweight)
+
+- Markflow now stores room/file content in a single SQLite file (`data/markflow.db` by default).
+- On first boot, legacy markdown files from `workspace/` are auto-imported into SQLite.
+- SQLite is ideal for low-ops hosting and Raspberry Pi (single-file DB, no external DB service).
+- You can override the DB location with `DATABASE_PATH`.
 
 ## Quick start
 
@@ -53,6 +61,10 @@ Copy `.env.example` to `.env` and adjust as needed:
 
 If `VITE_WS_URL` is not set, the client derives it from `VITE_SERVER_URL` (or from the current host + `:4000`).
 
+Optional server env var:
+
+- `DATABASE_PATH=./data/markflow.db`
+
 ## Collaboration model (rooms)
 
 - Default room: `lobby`
@@ -79,7 +91,9 @@ The easiest public setup:
    - Root directory: `server`
    - Build command: `npm install && npm run build`
    - Start command: `npm start`
-4. Deploy and copy the URL (example: `https://markflowmd-api.onrender.com`).
+   - Add a Disk (recommended): mount path `/opt/render/project/data`
+   - Env var: `DATABASE_PATH=/opt/render/project/data/markflow.db`
+4. Deploy and copy the HTTPS URL (example: `https://markflow-api.onrender.com`).
 
 ### Deploy client (Netlify)
 
@@ -112,6 +126,26 @@ Or run both quality checks from the repo root:
 npm run test
 npm run build
 ```
+
+## Raspberry Pi quick deploy (recommended for fastest self-hosting)
+
+Markflow is now SQLite-based, so Pi deployment stays simple:
+
+```bash
+git clone <your-repo-url>
+cd markflow
+cp .env.example .env
+docker-compose up --build -d
+```
+
+Then open:
+
+- `http://<pi-ip>:3000` (client)
+- server runs at `http://<pi-ip>:4000`
+
+Persistent data:
+
+- SQLite DB is stored at `./data/markflow.db` (mounted to `/app/data/markflow.db` in Docker).
 
 ## Testing
 
