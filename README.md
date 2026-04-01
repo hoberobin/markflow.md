@@ -61,18 +61,53 @@ Examples:
 
 Anyone with the link joins the same room and sees the same markdown file set for that room.
 
-## Deploy for instant online sharing
+## Fastest way to go live (no domain required)
 
-To make Markflow internet-accessible:
+This is the lightest public setup for team sharing:
 
-1. Deploy the **server** on a public host/container and expose port `4000`.
-2. Deploy the **client** on a public host (or static hosting) and point it at the server:
-   - `VITE_SERVER_URL=https://api.your-domain.com`
-   - `VITE_WS_URL=wss://api.your-domain.com`
-3. Ensure reverse proxy supports WebSocket upgrades.
-4. Share links like `https://app.your-domain.com/?room=team-alpha`.
+- **Frontend:** Netlify (serves React app)
+- **Backend:** any host with HTTPS + WebSocket support (Render is easiest)
 
-### Reverse proxy essentials (Nginx/Caddy/etc.)
+You will end up with links like:
+
+- App: `https://your-netlify-site.netlify.app`
+- Room: `https://your-netlify-site.netlify.app/?room=team-alpha`
+
+### 1) Deploy server (Render quick path)
+
+1. Push this repo to GitHub.
+2. In Render, create a new **Web Service** from this repo.
+3. Use these settings:
+   - Root directory: `server`
+   - Build command: `npm install && npm run build`
+   - Start command: `npm start`
+4. Deploy and copy the HTTPS URL (example: `https://markflow-api.onrender.com`).
+
+> Markflow uses WebSockets for real-time sync; Render supports this out of the box.
+
+### 2) Deploy client (Netlify)
+
+1. In Netlify, import the same GitHub repo.
+2. Use these settings:
+   - Base directory: `client`
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+3. Add environment variable:
+   - `VITE_SERVER_URL=https://<your-render-service>.onrender.com`
+4. Deploy.
+
+`VITE_WS_URL` is optional; if omitted, Markflow automatically derives `ws://`/`wss://` from `VITE_SERVER_URL`.
+
+### 3) Share a room
+
+Open your Netlify URL and share:
+
+- `https://your-netlify-site.netlify.app/?room=design-review`
+- `https://your-netlify-site.netlify.app/?room=docs-sprint`
+
+Anyone with the link joins the same room and collaborates in real time.
+
+### Reverse proxy essentials (Nginx/Caddy/etc., if self-hosting)
 
 - Route HTTP API traffic to server `:4000`
 - Forward `Upgrade` + `Connection` headers for websocket paths
