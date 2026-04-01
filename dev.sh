@@ -1,14 +1,19 @@
 #!/bin/bash
-# Run markflow locally (no Docker needed)
+# Run markflow.md locally (no Docker needed)
+
+set -euo pipefail
 
 if [ ! -f .env ]; then
   echo "Missing .env — run ./setup.sh first"
   exit 1
 fi
 
-export $(grep -v '^#' .env | xargs)
+# Export all values defined in .env while keeping shell parsing behavior.
+set -a
+source .env
+set +a
 
-echo "▸ Starting Markflow..."
+echo "▸ Starting markflow.md..."
 echo "  Server → http://localhost:4000"
 echo "  Client → http://localhost:3000"
 echo ""

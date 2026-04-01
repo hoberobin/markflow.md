@@ -1,21 +1,29 @@
-# Markflow
+# markflow.md
 
-Real-time collaborative markdown editor with shareable room links.
+**markflow.md** is a real-time collaborative markdown workspace with shareable room links.
 
-## What it does
+Use it for fast writing sessions, docs jams, and lightweight team note-taking without complex project setup.
 
-- Create and edit markdown files together in real time (shared cursors via Yjs)
-- Share a room instantly via URL (`?room=<id>`) so collaborators land in the same workspace
-- Keep each room isolated (separate file list, websocket docs, exports)
-- Live markdown preview while editing
-- Download the active markdown file or export the full room as a zip
+## Features
 
-## Stack
+- Real-time collaborative markdown editing (Yjs-based CRDT sync)
+- Shareable room links (`?room=<id>`) so collaborators join instantly
+- Room isolation for files, editor state, and exports
+- Live markdown preview
+- Download the active `.md` file
+- Export all room files as a `.zip`
+- Import multiple markdown files into a room
 
-- **Client**: React + Vite (port 3000)
-- **Server**: Node.js + WebSocket + REST (port 4000)
-- **Sync**: Yjs CRDT
-- **Database**: SQLite (`better-sqlite3`) for lightweight persistence
+## Project status
+
+[![CI](https://github.com/hoberobin/markflow/actions/workflows/ci.yml/badge.svg)](https://github.com/hoberobin/markflow/actions/workflows/ci.yml)
+
+## Architecture
+
+- **Client:** React + Vite (`client/`, default port `3000`)
+- **Server:** Node.js + Express + WebSocket (`server/`, default port `4000`)
+- **Collaboration engine:** Yjs + awareness protocol
+- **Database:** SQLite (`better-sqlite3`) for lightweight persistence
 
 ## Storage model (fast + lightweight)
 
@@ -24,34 +32,34 @@ Real-time collaborative markdown editor with shareable room links.
 - SQLite is ideal for low-ops hosting and Raspberry Pi (single-file DB, no external DB service).
 - You can override the DB location with `DATABASE_PATH`.
 
-## Quick start (Docker)
+## Quick start
+
+### Docker
 
 ```bash
 cp .env.example .env
-docker-compose up --build
+docker compose up --build
 ```
 
 Open `http://localhost:3000`.
 
-By default, API and WebSocket use the same hostname on port `4000`, so sharing from another device on your LAN works by replacing `localhost` with your machine IP.
-
-## Development (without Docker)
+### Local development
 
 ```bash
 ./start.sh
 ```
 
-Or manually:
+This script installs dependencies and starts both services.
 
-```bash
-# Terminal 1 — server
-cd server && npm install && npm run dev
+## Environment configuration
 
-# Terminal 2 — client
-cd client && npm install && npm run dev
-```
+Copy `.env.example` to `.env` and adjust as needed:
 
-Optional: set `VITE_SERVER_URL` and `VITE_WS_URL` in `.env` at the repo root if the API is not on `hostname:4000`.
+- `PORT`: server port (default `4000`)
+- `VITE_SERVER_URL`: explicit API base URL for the client
+- `VITE_WS_URL`: explicit WebSocket base URL (optional)
+
+If `VITE_WS_URL` is not set, the client derives it from `VITE_SERVER_URL` (or from the current host + `:4000`).
 
 Optional server env var:
 
@@ -59,37 +67,27 @@ Optional server env var:
 
 ## Collaboration model (rooms)
 
-- Default room is `lobby`.
-- A room is selected by URL query param: `?room=my-team`.
-- The UI has:
-  - room input + Join
-  - Copy link
-  - New room (generates an instant shareable slug)
+- Default room: `lobby`
+- Room comes from URL query parameter: `?room=my-team`
+- Anyone with the same room link sees the same markdown file set
 
 Examples:
 
 - `https://your-domain/?room=design-review`
 - `https://your-domain/?room=docs-sprint`
 
-Anyone with the link joins the same room and sees the same markdown file set for that room.
+## Deploying publicly
 
-## Fastest way to go live (no domain required)
+The easiest public setup:
 
-This is the lightest public setup for team sharing:
+- **Frontend:** Netlify
+- **Backend:** Render (or any host supporting HTTPS + WebSocket)
 
-- **Frontend:** Netlify (serves React app)
-- **Backend:** any host with HTTPS + WebSocket support (Render is easiest)
-
-You will end up with links like:
-
-- App: `https://your-netlify-site.netlify.app`
-- Room: `https://your-netlify-site.netlify.app/?room=team-alpha`
-
-### 1) Deploy server (Render quick path)
+### Deploy server (Render quick path)
 
 1. Push this repo to GitHub.
-2. In Render, create a new **Web Service** from this repo.
-3. Use these settings:
+2. Create a Render Web Service from this repo.
+3. Use:
    - Root directory: `server`
    - Build command: `npm install && npm run build`
    - Start command: `npm start`
@@ -97,35 +95,37 @@ You will end up with links like:
    - Env var: `DATABASE_PATH=/opt/render/project/data/markflow.db`
 4. Deploy and copy the HTTPS URL (example: `https://markflow-api.onrender.com`).
 
-> Markflow uses WebSockets for real-time sync; Render supports this out of the box.
+### Deploy client (Netlify)
 
-### 2) Deploy client (Netlify)
-
-1. In Netlify, import the same GitHub repo.
-2. Use these settings:
+1. Import this repo in Netlify.
+2. Use:
    - Base directory: `client`
    - Build command: `npm run build`
    - Publish directory: `dist`
-3. Add environment variable:
+3. Add:
    - `VITE_SERVER_URL=https://<your-render-service>.onrender.com`
 4. Deploy.
 
-`VITE_WS_URL` is optional; if omitted, Markflow automatically derives `ws://`/`wss://` from `VITE_SERVER_URL`.
+Share links like:
 
-### 3) Share a room
+- `https://your-netlify-site.netlify.app/?room=team-alpha`
 
-Open your Netlify URL and share:
+## Development commands
 
-- `https://your-netlify-site.netlify.app/?room=design-review`
-- `https://your-netlify-site.netlify.app/?room=docs-sprint`
+```bash
+# Server
+cd server && npm run dev
 
-Anyone with the link joins the same room and collaborates in real time.
+# Client
+cd client && npm run dev
+```
 
-### Reverse proxy essentials (Nginx/Caddy/etc., if self-hosting)
+Or run both quality checks from the repo root:
 
-- Route HTTP API traffic to server `:4000`
-- Forward `Upgrade` + `Connection` headers for websocket paths
-- Use TLS in production (`https`/`wss`)
+```bash
+npm run test
+npm run build
+```
 
 ## Raspberry Pi quick deploy (recommended for fastest self-hosting)
 
@@ -150,9 +150,18 @@ Persistent data:
 ## Testing
 
 ```bash
-# server
+# Server tests
 cd server && npm test
 
-# client
+# Client tests
 cd client && npm test
 ```
+
+## Open-source docs
+
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+- [SECURITY.md](./SECURITY.md)
+- [LICENSE](./LICENSE)
+- [CHANGELOG.md](./CHANGELOG.md)
+- [ROADMAP.md](./ROADMAP.md)

@@ -277,7 +277,7 @@ app.get('/export/workspace.zip', async (req: Request, res: Response) => {
   const room = parseRoom(req.query.room)
   if (!room) return res.status(400).json({ error: 'Invalid room id' })
   res.setHeader('Content-Type', 'application/zip')
-  res.setHeader('Content-Disposition', `attachment; filename="markflow-${room}-workspace.zip"`)
+  res.setHeader('Content-Disposition', `attachment; filename="markflow-md-${room}-workspace.zip"`)
 
   const archive = archiver('zip', { zlib: { level: 9 } })
   archive.on('error', err => {
@@ -329,7 +329,7 @@ app.post('/files/import', upload.array('files', 50), async (req: Request, res: R
 // ─── Start ────────────────────────────────────────────────────────────────────
 const PORT = Number(process.env.PORT || 4000)
 const httpServer = server.listen(PORT, () => {
-  console.log(`Markflow server running on port ${PORT}`)
+  console.log(`markflow.md server running on port ${PORT}`)
   console.log(`SQLite database: ${DATABASE_PATH}`)
   console.log(`Legacy migration workspace: ${LEGACY_WS_DIR}`)
 })

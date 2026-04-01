@@ -1,5 +1,5 @@
 {
-  "name": "markflow-server",
+  "name": "markflow-md-server",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -30,5 +30,10 @@
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",
     "vitest": "^4.1.2"
+  },
+  "vitest": {
+    "exclude": [
+      "dist/**"
+    ]
   }
 }
