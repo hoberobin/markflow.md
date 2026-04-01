@@ -125,7 +125,7 @@ export default function Sidebar({
   return (
     <>
       <aside
-        className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}
+        className={`sidebar workspace-sidebar ${mobileOpen ? 'sidebar-open' : ''}`}
         style={{
           width: 220,
           minWidth: 220,
@@ -138,6 +138,7 @@ export default function Sidebar({
         }}
       >
       <div
+        className="sidebar-header"
         style={{
           padding: '16px 16px 12px',
           borderBottom: '1px solid var(--border)',
@@ -147,6 +148,7 @@ export default function Sidebar({
         }}
       >
         <span
+          className="sidebar-header-title"
           style={{
             fontFamily: 'var(--mono)',
             fontSize: 11,
@@ -158,6 +160,7 @@ export default function Sidebar({
           workspace
         </span>
         <button
+          className="sidebar-new-file-btn"
           type="button"
           onClick={() => {
             setCreating(true)
@@ -183,6 +186,7 @@ export default function Sidebar({
       </div>
 
       <form
+        className="sidebar-room-form"
         onSubmit={e => {
           e.preventDefault()
           onChangeRoom(roomDraft)
@@ -190,6 +194,7 @@ export default function Sidebar({
         style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}
       >
         <label
+          className="sidebar-room-label"
           style={{
             display: 'block',
             fontFamily: 'var(--mono)',
@@ -203,14 +208,16 @@ export default function Sidebar({
           Room link
         </label>
         <input
+          className="sidebar-room-input"
           value={roomDraft}
           onChange={e => setRoomDraft(e.target.value)}
           placeholder="lobby"
           aria-label="Room"
           style={{ marginBottom: 6, fontSize: 12, padding: '6px 8px' }}
         />
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="sidebar-room-actions" style={{ display: 'flex', gap: 6 }}>
           <button
+            className="sidebar-room-btn"
             type="submit"
             style={{
               flex: 1,
@@ -226,6 +233,7 @@ export default function Sidebar({
             join
           </button>
           <button
+            className="sidebar-room-btn sidebar-copy-btn"
             type="button"
             onClick={async () => {
               try {
@@ -250,6 +258,7 @@ export default function Sidebar({
           </button>
         </div>
         <button
+          className="sidebar-room-btn sidebar-new-room-btn"
           type="button"
           onClick={() => {
             onGenerateRoom()
@@ -272,6 +281,7 @@ export default function Sidebar({
 
       {filesError && (
         <div
+          className="sidebar-files-error"
           style={{
             margin: '8px 12px 0',
             padding: '8px 10px',
@@ -289,8 +299,13 @@ export default function Sidebar({
       )}
 
       {creating && (
-        <form onSubmit={handleCreate} style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
+        <form
+          className="sidebar-create-form"
+          onSubmit={handleCreate}
+          style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)' }}
+        >
           <input
+            className="sidebar-create-input"
             autoFocus
             value={newName}
             onChange={e => setNewName(e.target.value)}
@@ -303,18 +318,22 @@ export default function Sidebar({
             }}
             style={{ marginBottom: error ? 6 : 0 }}
           />
-          {error && <div style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4 }}>{error}</div>}
+          {error && (
+            <div className="sidebar-create-error" style={{ fontSize: 11, color: 'var(--coral)', marginTop: 4 }}>
+              {error}
+            </div>
+          )}
         </form>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
+      <div className="sidebar-files-list" style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
         {loading && files.length === 0 && !filesError && (
-          <div style={{ padding: '24px 16px', color: 'var(--text3)', fontSize: 12, fontFamily: 'var(--mono)' }}>
+          <div className="sidebar-files-loading" style={{ padding: '24px 16px', color: 'var(--text3)', fontSize: 12, fontFamily: 'var(--mono)' }}>
             Loading…
           </div>
         )}
         {!loading && files.length === 0 && !creating && !filesError && (
-          <div style={{ padding: '24px 16px', color: 'var(--text3)', fontSize: 13, lineHeight: 1.6 }}>
+          <div className="sidebar-files-empty" style={{ padding: '24px 16px', color: 'var(--text3)', fontSize: 13, lineHeight: 1.6 }}>
             No files yet.
             <br />
             Click + to create one.
@@ -336,6 +355,7 @@ export default function Sidebar({
       </div>
 
       <div
+        className="sidebar-footer"
         style={{
           padding: '10px 16px',
           borderTop: '1px solid var(--border)'
@@ -343,6 +363,7 @@ export default function Sidebar({
       >
         {editingName ? (
           <form
+            className="sidebar-name-form"
             onSubmit={e => {
               e.preventDefault()
               onRenameUser(nameDraft)
@@ -351,6 +372,7 @@ export default function Sidebar({
             style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: presence.length ? 8 : 0 }}
           >
             <input
+              className="sidebar-name-input"
               autoFocus
               value={nameDraft}
               onChange={e => setNameDraft(e.target.value)}
@@ -369,6 +391,7 @@ export default function Sidebar({
           </form>
         ) : (
           <button
+            className="sidebar-name-button"
             type="button"
             onClick={() => setEditingName(true)}
             title="Click to change your name"
@@ -387,9 +410,10 @@ export default function Sidebar({
           </button>
         )}
         {presence.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="sidebar-presence" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             {presence.map(p => (
               <div
+                className="sidebar-presence-dot"
                 key={p.clientId}
                 title={p.name}
                 style={{
@@ -401,7 +425,9 @@ export default function Sidebar({
                 }}
               />
             ))}
-            <span style={{ fontSize: 11, color: 'var(--text3)' }}>{presence.length} online</span>
+            <span className="sidebar-presence-count" style={{ fontSize: 11, color: 'var(--text3)' }}>
+              {presence.length} online
+            </span>
           </div>
         )}
       </div>
@@ -439,6 +465,7 @@ function FileRow({
 }) {
   return (
     <div
+      className={`sidebar-file-row ${active ? 'is-active' : ''}`}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -450,6 +477,7 @@ function FileRow({
       }}
     >
       <button
+        className="sidebar-file-select"
         type="button"
         onClick={onSelect}
         aria-current={active ? 'page' : undefined}
@@ -472,9 +500,10 @@ function FileRow({
       </button>
 
       {users.length > 0 && (
-        <div style={{ display: 'flex', gap: 2, marginRight: 4 }}>
+        <div className="sidebar-file-users" style={{ display: 'flex', gap: 2, marginRight: 4 }}>
           {users.slice(0, 3).map(u => (
             <div
+              className="sidebar-file-user-dot"
               key={u.clientId}
               style={{
                 width: 5,
@@ -488,6 +517,7 @@ function FileRow({
       )}
 
       <button
+        className="sidebar-file-delete"
         type="button"
         onClick={onRequestDelete}
         style={{
@@ -523,6 +553,7 @@ function DeleteDialog({
 }) {
   return (
     <div
+      className="delete-dialog-overlay"
       role="dialog"
       aria-modal="true"
       aria-label={`Delete ${fileName}`}
@@ -538,6 +569,7 @@ function DeleteDialog({
       }}
     >
       <div
+        className="delete-dialog-panel"
         style={{
           width: '100%',
           maxWidth: 320,
@@ -547,8 +579,11 @@ function DeleteDialog({
           padding: 14
         }}
       >
-        <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6 }}>Delete this file?</div>
+        <div className="delete-dialog-title" style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6 }}>
+          Delete this file?
+        </div>
         <div
+          className="delete-dialog-filename"
           style={{
             fontFamily: 'var(--mono)',
             fontSize: 12,
@@ -560,10 +595,13 @@ function DeleteDialog({
           {fileName}
         </div>
         {error && (
-          <div style={{ marginBottom: 10, color: 'var(--coral)', fontFamily: 'var(--mono)', fontSize: 11 }}>{error}</div>
+          <div className="delete-dialog-error" style={{ marginBottom: 10, color: 'var(--coral)', fontFamily: 'var(--mono)', fontSize: 11 }}>
+            {error}
+          </div>
         )}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div className="delete-dialog-actions" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button
+            className="delete-dialog-btn delete-dialog-cancel"
             type="button"
             onClick={onCancel}
             disabled={busy}
@@ -578,6 +616,7 @@ function DeleteDialog({
             Cancel
           </button>
           <button
+            className="delete-dialog-btn delete-dialog-confirm"
             type="button"
             onClick={onConfirm}
             disabled={busy}
