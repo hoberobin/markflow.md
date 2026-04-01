@@ -1,12 +1,11 @@
 # Markflow
 
-Real-time collaborative markdown editor with Claude AI integration.
+Real-time collaborative markdown editor.
 
 ## Setup
 
 ```bash
 cp .env.example .env
-# Add your ANTHROPIC_API_KEY to .env
 docker-compose up --build
 ```
 
@@ -16,15 +15,14 @@ Open http://localhost:3000 (API and WebSocket default to **the same hostname** o
 
 - Create and edit markdown files together in real time (shared cursors via Yjs)
 - Files live in `./workspace/` on your machine (mounted in Docker)
-- Ask Claude to rewrite, generate, critique, or chat about any doc
-- Run a doc as a prompt template with `{{variable}}` substitution
+- Live markdown preview while editing
+- Download the active markdown file or export the full workspace as a zip
 
 ## Stack
 
 - **Client**: React + Vite (port 3000)
 - **Server**: Node.js + WebSocket + REST (port 4000)
 - **Sync**: Yjs CRDT
-- **AI**: Anthropic API proxied through the server (`GET /health` reports whether a key is configured)
 
 ## Development (without Docker)
 
