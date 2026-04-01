@@ -5,12 +5,8 @@ services:
     build: ./server
     ports:
       - "4000:4000"
-    volumes:
-      - ./workspace:/app/workspace
-      - ./data:/app/data
     environment:
       - NODE_ENV=development
-      - DATABASE_PATH=/app/data/markflow.db
     restart: unless-stopped
 
   client:
@@ -20,6 +16,3 @@ services:
     depends_on:
       - server
     restart: unless-stopped
-
-volumes:
-  workspace:
