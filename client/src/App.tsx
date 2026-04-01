@@ -13,7 +13,7 @@ import Sidebar from './components/Sidebar'
 import { useFiles } from './hooks/useFiles'
 import { getWsUrl, getServerUrl } from './config'
 import type { PresencePeer } from './types'
-import { generateRoomId, readRoomFromLocation, sanitizeRoomId, writeRoomToLocation } from './utils/room'
+import { DEFAULT_ROOM, generateRoomId, readRoomFromLocation, sanitizeRoomId, writeRoomToLocation } from './utils/room'
 
 const COLORS = ['#c8f060', '#60c8f0', '#f060c8', '#f0c860', '#60f0c8', '#f06060', '#c860f0']
 
@@ -114,6 +114,7 @@ function CollabEditor({
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [room, setRoom] = useState(() => readRoomFromLocation())
+  const [workspaceEntered, setWorkspaceEntered] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [userName, setUserName] = useState(() => {
     const saved = localStorage.getItem('mf_name')
@@ -127,7 +128,7 @@ export default function App() {
   const [preview, setPreview] = useState(false)
   const [presence, setPresence] = useState<PresencePeer[]>([])
   const [createFormSignal, setCreateFormSignal] = useState(0)
-  const { files, loading, error: filesError, createFile, deleteFile, refresh } = useFiles(room)
+  const { files, loading, error: filesError, createFile, deleteFile, refresh } = useFiles(room, workspaceEntered)
 
   useEffect(() => {
     const id = setInterval(() => void refresh(), 5000)
@@ -135,11 +136,16 @@ export default function App() {
   }, [refresh])
 
   useEffect(() => {
+    if (!workspaceEntered) return
     writeRoomToLocation(room)
+  }, [room, workspaceEntered])
+
+  useEffect(() => {
+    if (!workspaceEntered) return
     setActiveFile(null)
     setContent('')
     setPresence([])
-  }, [room])
+  }, [room, workspaceEntered])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -184,8 +190,23 @@ export default function App() {
     return DOMPurify.sanitize(parsed)
   }, [content])
 
+  const connectToRoom = (nextRoom: string) => {
+    setRoom(sanitizeRoomId(nextRoom))
+    setWorkspaceEntered(true)
+  }
+
+  if (!workspaceEntered) {
+    return (
+      <RoomConnectDialog
+        initialRoom={room}
+        onJoinRoom={nextRoom => connectToRoom(nextRoom)}
+        onCreateRoom={() => connectToRoom(generateRoomId())}
+      />
+    )
+  }
+
   return (
-    <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div className="app-shell">
       <button
         type="button"
         className="mobile-sidebar-toggle"
@@ -225,20 +246,8 @@ export default function App() {
         createFormSignal={createFormSignal}
       />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <header
-          className="topbar"
-          style={{
-            height: 44,
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0 16px',
-            gap: 8,
-            background: 'var(--bg2)',
-            borderBottom: '1px solid var(--border)',
-            flexShrink: 0
-          }}
-        >
+      <div className="workspace-main">
+        <header className="topbar">
           <button
             type="button"
             className="mobile-inline-toggle"
@@ -248,22 +257,11 @@ export default function App() {
           >
             ☰
           </button>
-          <span
-            className="topbar-file"
-            style={{
-              fontFamily: 'var(--mono)',
-              fontSize: 12,
-              color: activeFile ? 'var(--text2)' : 'var(--text3)',
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}
-          >
+          <span className={`topbar-file ${activeFile ? 'topbar-file-active' : ''}`}>
             {activeFile || '—'}
           </span>
 
-          <div className="topbar-avatars" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <div className="topbar-avatars">
             {activePresence.map(p => (
               <Avatar key={p.clientId} name={p.name} color={p.color} />
             ))}
@@ -301,22 +299,6 @@ export default function App() {
               type="button"
               onClick={downloadActiveFile}
               disabled={!activeFile}
-              style={{
-                height: 28,
-                padding: '0 10px',
-                background: 'var(--bg4)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                fontSize: 11,
-                fontFamily: 'var(--mono)',
-                color: activeFile ? 'var(--text2)' : 'var(--text3)',
-                letterSpacing: '0.06em',
-                transition: 'all 0.15s',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                opacity: activeFile ? 1 : 0.65
-              }}
             >
               save .md
             </button>
@@ -324,27 +306,13 @@ export default function App() {
               className="topbar-action"
               type="button"
               onClick={downloadWorkspace}
-              style={{
-                height: 28,
-                padding: '0 10px',
-                background: 'var(--bg4)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                fontSize: 11,
-                fontFamily: 'var(--mono)',
-                color: 'var(--text2)',
-                letterSpacing: '0.06em',
-                transition: 'all 0.15s',
-                display: 'flex',
-                alignItems: 'center'
-              }}
             >
               download zip
             </button>
           </div>
         </header>
 
-        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <div className="workspace-content">
           {!activeFile ? (
             <Empty onOpenCreateForm={() => setCreateFormSignal(n => n + 1)} />
           ) : preview ? (
@@ -366,6 +334,71 @@ export default function App() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+function RoomConnectDialog({
+  initialRoom,
+  onJoinRoom,
+  onCreateRoom
+}: {
+  initialRoom: string
+  onJoinRoom: (room: string) => void
+  onCreateRoom: () => void
+}) {
+  const [roomDraft, setRoomDraft] = useState(initialRoom === DEFAULT_ROOM ? '' : initialRoom)
+
+  useEffect(() => {
+    if (initialRoom === DEFAULT_ROOM) return
+    setRoomDraft(initialRoom)
+  }, [initialRoom])
+
+  const roomPreview = sanitizeRoomId(roomDraft || DEFAULT_ROOM)
+  const sharePreview =
+    typeof window === 'undefined' ? `https://app.markflow.dev/?room=${roomPreview}` : `${window.location.origin}/?room=${roomPreview}`
+
+  return (
+    <main className="connect-shell">
+      <section className="connect-dialog" role="dialog" aria-modal="true" aria-labelledby="room-connect-title">
+        <div className="connect-badge">MARKFLOW</div>
+        <h1 id="room-connect-title" className="connect-title">
+          Connect to a room
+        </h1>
+        <p className="connect-subtitle">Join an existing room or create a new one before entering the workspace.</p>
+
+        <form
+          className="connect-form"
+          onSubmit={e => {
+            e.preventDefault()
+            onJoinRoom(roomDraft || DEFAULT_ROOM)
+          }}
+        >
+          <label htmlFor="room-connect-input" className="connect-label">
+            Room name
+          </label>
+          <div className="connect-row">
+            <input
+              id="room-connect-input"
+              value={roomDraft}
+              onChange={e => setRoomDraft(e.target.value)}
+              placeholder="design-review"
+              className="connect-input"
+              autoFocus
+            />
+            <button type="submit" className="connect-btn connect-btn-primary">
+              Connect
+            </button>
+          </div>
+          <button type="button" className="connect-btn connect-btn-secondary" onClick={onCreateRoom}>
+            Create and connect
+          </button>
+        </form>
+
+        <div className="connect-link-preview">
+          Room link preview: <span>{sharePreview}</span>
+        </div>
+      </section>
+    </main>
+  )
+}
+
 function Avatar({ name, color, self }: { name: string; color: string; self?: boolean }) {
   return (
     <div
@@ -408,24 +441,16 @@ function IconBtn({
   children: ReactNode
   className?: string
 }) {
+  const classes = ['icon-btn']
+  if (className) classes.push(className)
+  if (active) classes.push('icon-btn-active')
+
   return (
     <button
-      className={className}
+      className={classes.join(' ')}
       type="button"
       onClick={onClick}
       title={title}
-      style={{
-        width: 28,
-        height: 28,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 'var(--radius)',
-        background: active ? 'var(--bg4)' : 'transparent',
-        border: active ? '1px solid var(--border)' : '1px solid transparent',
-        color: active ? 'var(--text)' : 'var(--text3)',
-        transition: 'all 0.1s'
-      }}
     >
       {children}
     </button>
@@ -434,35 +459,16 @@ function IconBtn({
 
 function Empty({ onOpenCreateForm }: { onOpenCreateForm: () => void }) {
   return (
-    <div
-      style={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
-        color: 'var(--text3)'
-      }}
-    >
-      <div style={{ fontFamily: 'var(--serif)', fontSize: '2.4rem', fontStyle: 'italic', opacity: 0.3 }}>
+    <div className="empty-state">
+      <div className="empty-state-title">
         markflow.md
       </div>
-      <div style={{ fontSize: 13 }}>
+      <div className="empty-state-subtitle">
         Pick a file or{' '}
         <button
           type="button"
           onClick={onOpenCreateForm}
-          style={{
-            color: 'var(--accent)',
-            fontFamily: 'var(--mono)',
-            fontSize: 13,
-            textDecoration: 'underline',
-            cursor: 'pointer',
-            background: 'none',
-            border: 'none',
-            padding: 0
-          }}
+          className="empty-state-link"
         >
           create one
         </button>
