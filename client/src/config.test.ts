@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { getServerUrl, getWsUrl } from './config'
+import { detectServerUrlParallel, getServerCandidatesForClient, getServerUrl, getWsUrl, getWsUrlForServer } from './config'
 
 const originalWindow = globalThis.window
 
@@ -66,5 +66,45 @@ describe('config URL resolution', () => {
     }))
     expect(getServerUrl()).toBe('https://api.markflow.dev')
     expect(getWsUrl()).toBe('wss://api.markflow.dev')
+  })
+
+  it('maps server URL to websocket URL directly', () => {
+    expect(getWsUrlForServer('https://api.example.com')).toBe('wss://api.example.com')
+    expect(getWsUrlForServer('http://127.0.0.1:4000')).toBe('ws://127.0.0.1:4000')
+  })
+
+  it('can detect /api backend health when same-origin has no server health', async () => {
+    setWindowForTest(mockWindowLocation({
+      protocol: 'https:',
+      hostname: 'docs.example.com',
+      origin: 'https://docs.example.com',
+      port: ''
+    }))
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === 'https://docs.example.com/health') {
+        return Promise.resolve({ ok: false } as Response)
+      }
+      if (url === 'https://docs.example.com/api/health') {
+        return Promise.resolve({ ok: true } as Response)
+      }
+      return Promise.resolve({ ok: false } as Response)
+    })
+
+    await expect(detectServerUrlParallel()).resolves.toBe('https://docs.example.com/api')
+    fetchSpy.mockRestore()
+  })
+
+  it('includes likely same-origin and api candidates', () => {
+    setWindowForTest(mockWindowLocation({
+      protocol: 'https:',
+      hostname: 'docs.example.com',
+      origin: 'https://docs.example.com',
+      port: ''
+    }))
+    const candidates = getServerCandidatesForClient()
+    expect(candidates).toContain('https://docs.example.com')
+    expect(candidates).toContain('https://docs.example.com/api')
   })
 })
