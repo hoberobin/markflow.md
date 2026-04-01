@@ -12,6 +12,8 @@ export interface SidebarProps {
   onChangeRoom: (room: string) => void
   onGenerateRoom: () => void
   onCopyShareLink: () => void | Promise<void>
+  mobileOpen: boolean
+  onCloseMobile: () => void
   onRenameUser: (name: string) => void
   onSelect: (name: string) => void
   onCreate: (name: string) => Promise<WorkspaceFile>
@@ -29,6 +31,8 @@ export default function Sidebar({
   onChangeRoom,
   onGenerateRoom,
   onCopyShareLink,
+  mobileOpen,
+  onCloseMobile,
   onRenameUser,
   onSelect,
   onCreate,
@@ -109,18 +113,20 @@ export default function Sidebar({
   })
 
   return (
-    <aside
-      style={{
-        width: 220,
-        minWidth: 220,
-        background: 'var(--bg2)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        overflow: 'hidden'
-      }}
-    >
+    <>
+      <aside
+        className={`sidebar ${mobileOpen ? 'sidebar-open' : ''}`}
+        style={{
+          width: 220,
+          minWidth: 220,
+          background: 'var(--bg2)',
+          borderRight: '1px solid var(--border)',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          overflow: 'hidden'
+        }}
+      >
       <div
         style={{
           padding: '16px 16px 12px',
@@ -401,7 +407,9 @@ export default function Sidebar({
           onConfirm={() => void confirmDelete()}
         />
       )}
-    </aside>
+      </aside>
+      {mobileOpen && <button className="sidebar-backdrop" type="button" onClick={onCloseMobile} aria-label="Close sidebar" />}
+    </>
   )
 }
 

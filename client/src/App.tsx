@@ -114,6 +114,7 @@ function CollabEditor({
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [room, setRoom] = useState(() => readRoomFromLocation())
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [userName, setUserName] = useState(() => {
     const saved = localStorage.getItem('mf_name')
     if (saved) return saved
@@ -138,6 +139,15 @@ export default function App() {
     setContent('')
     setPresence([])
   }, [room])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const media = window.matchMedia('(max-width: 900px)')
+    const apply = () => setSidebarOpen(!media.matches)
+    apply()
+    media.addEventListener('change', apply)
+    return () => media.removeEventListener('change', apply)
+  }, [])
 
   function saveUserName(next: string) {
     const t = (next || '').trim() || randomName()
@@ -174,8 +184,19 @@ export default function App() {
   }, [content])
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+    <div className="app-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+      <button
+        type="button"
+        className="mobile-sidebar-toggle"
+        onClick={() => setSidebarOpen(prev => !prev)}
+        aria-expanded={sidebarOpen}
+        aria-label={sidebarOpen ? 'Close workspace sidebar' : 'Open workspace sidebar'}
+      >
+        {sidebarOpen ? 'Close' : 'Files'}
+      </button>
       <Sidebar
+        mobileOpen={sidebarOpen}
+        onCloseMobile={() => setSidebarOpen(false)}
         files={files}
         loading={loading}
         filesError={filesError}
@@ -189,6 +210,7 @@ export default function App() {
         onSelect={name => {
           setActiveFile(name)
           setContent('')
+          if (window.matchMedia('(max-width: 900px)').matches) setSidebarOpen(false)
         }}
         onCreate={createFile}
         onDelete={async name => {
@@ -203,6 +225,7 @@ export default function App() {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <header
+          className="topbar"
           style={{
             height: 44,
             display: 'flex',
@@ -214,7 +237,17 @@ export default function App() {
             flexShrink: 0
           }}
         >
+          <button
+            type="button"
+            className="mobile-inline-toggle"
+            onClick={() => setSidebarOpen(prev => !prev)}
+            aria-expanded={sidebarOpen}
+            aria-label="Toggle workspace sidebar"
+          >
+            ☰
+          </button>
           <span
+            className="topbar-file"
             style={{
               fontFamily: 'var(--mono)',
               fontSize: 12,
@@ -228,16 +261,16 @@ export default function App() {
             {activeFile || '—'}
           </span>
 
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <div className="topbar-avatars" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             {activePresence.map(p => (
               <Avatar key={p.clientId} name={p.name} color={p.color} />
             ))}
             <Avatar name={userName} color={getColor(userName)} self />
           </div>
 
-          <Sep />
+          <Sep className="topbar-sep" />
 
-          <IconBtn active={!preview} onClick={() => setPreview(false)} title="Edit">
+          <IconBtn active={!preview} onClick={() => setPreview(false)} title="Edit" className="topbar-icon">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
               <path
                 d="M1.5 2h4v9h-4zM7.5 2h4v9h-4z"
@@ -247,7 +280,7 @@ export default function App() {
               />
             </svg>
           </IconBtn>
-          <IconBtn active={preview} onClick={() => setPreview(true)} title="Preview">
+          <IconBtn active={preview} onClick={() => setPreview(true)} title="Preview" className="topbar-icon">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
               <path
                 d="M1 6.5S3 2 6.5 2 12 6.5 12 6.5 10 11 6.5 11 1 6.5 1 6.5z"
@@ -258,51 +291,55 @@ export default function App() {
             </svg>
           </IconBtn>
 
-          <Sep />
+          <Sep className="topbar-sep" />
 
-          <button
-            type="button"
-            onClick={downloadActiveFile}
-            disabled={!activeFile}
-            style={{
-              height: 28,
-              padding: '0 10px',
-              background: 'var(--bg4)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              fontSize: 11,
-              fontFamily: 'var(--mono)',
-              color: activeFile ? 'var(--text2)' : 'var(--text3)',
-              letterSpacing: '0.06em',
-              transition: 'all 0.15s',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              opacity: activeFile ? 1 : 0.65
-            }}
-          >
-            save .md
-          </button>
-          <button
-            type="button"
-            onClick={downloadWorkspace}
-            style={{
-              height: 28,
-              padding: '0 10px',
-              background: 'var(--bg4)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              fontSize: 11,
-              fontFamily: 'var(--mono)',
-              color: 'var(--text2)',
-              letterSpacing: '0.06em',
-              transition: 'all 0.15s',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-          >
-            download zip
-          </button>
+          <div className="topbar-actions">
+            <button
+              className="topbar-action"
+              type="button"
+              onClick={downloadActiveFile}
+              disabled={!activeFile}
+              style={{
+                height: 28,
+                padding: '0 10px',
+                background: 'var(--bg4)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                fontSize: 11,
+                fontFamily: 'var(--mono)',
+                color: activeFile ? 'var(--text2)' : 'var(--text3)',
+                letterSpacing: '0.06em',
+                transition: 'all 0.15s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                opacity: activeFile ? 1 : 0.65
+              }}
+            >
+              save .md
+            </button>
+            <button
+              className="topbar-action"
+              type="button"
+              onClick={downloadWorkspace}
+              style={{
+                height: 28,
+                padding: '0 10px',
+                background: 'var(--bg4)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                fontSize: 11,
+                fontFamily: 'var(--mono)',
+                color: 'var(--text2)',
+                letterSpacing: '0.06em',
+                transition: 'all 0.15s',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              download zip
+            </button>
+          </div>
         </header>
 
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
@@ -357,23 +394,26 @@ function Avatar({ name, color, self }: { name: string; color: string; self?: boo
   )
 }
 
-function Sep() {
-  return <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 2px' }} />
+function Sep({ className }: { className?: string }) {
+  return <div className={className} style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 2px' }} />
 }
 
 function IconBtn({
   active,
   onClick,
   title,
-  children
+  children,
+  className
 }: {
   active: boolean
   onClick: () => void
   title: string
   children: ReactNode
+  className?: string
 }) {
   return (
     <button
+      className={className}
       type="button"
       onClick={onClick}
       title={title}
