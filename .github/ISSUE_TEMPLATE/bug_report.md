@@ -1,14 +1,12 @@
 ---
 name: Bug report
-about: Report a reproducible problem in markflow.md
+about: Something is broken or incorrect
 title: "[Bug] "
 labels: bug
-assignees: ""
+assignees: ''
 ---
 
-## Summary
-
-<!-- Briefly describe the problem -->
+## What happened
 
 ## Steps to reproduce
 
@@ -16,20 +14,14 @@ assignees: ""
 2.
 3.
 
-## Expected behavior
-
-<!-- What should happen -->
-
-## Actual behavior
-
-<!-- What happened instead -->
+## Expected vs actual
 
 ## Environment
 
 - OS:
 - Browser:
-- Deployment (local / docker / netlify+render / other):
+- How you run it: local Vite + server / Docker / Render / other:
 
-## Additional context
+## Extra
 
-<!-- Logs, screenshots, sample markdown, etc. -->
+<!-- Logs, screenshots, network errors for /shared, etc. -->

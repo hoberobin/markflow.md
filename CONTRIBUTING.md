@@ -1,69 +1,39 @@
-# Contributing to markflow.md
+# Contributing
 
-Thanks for helping improve markflow.md. This guide keeps contributions fast to review and easy to merge.
+Thanks for helping improve markflow.md. Small, focused PRs are easiest to review.
 
-## Development setup
-
-### Option 1: One-command local startup
+## Setup
 
 ```bash
 ./start.sh
 ```
 
-This installs dependencies for both packages and starts:
+Or two terminals: `cd server && npm ci && npm run dev` and `cd client && npm ci && npm run dev`. The API must be on **port 4000** while using Vite dev (proxy).
 
-- client on `http://localhost:3000`
-- server on `http://localhost:4000`
+See [README.md](./README.md) for Docker, Render, and environment variables.
 
-### Option 2: Manual startup
-
-```bash
-# terminal 1
-cd server && npm install && npm run dev
-
-# terminal 2
-cd client && npm install && npm run dev
-```
-
-## Environment variables
-
-Copy `.env.example` to `.env`:
-
-```bash
-cp .env.example .env
-```
-
-Common variables:
-
-- `PORT` (server port, default `4000`)
-- `VITE_SERVER_URL` (client API base URL)
-- `VITE_WS_URL` (optional explicit WebSocket URL)
-
-## Tests
-
-Run tests before opening a PR:
+## Before you open a PR
 
 ```bash
 npm run test
-```
-
-## Build verification
-
-```bash
 npm run build
 ```
 
-## Pull request expectations
+Use **`npm ci`** in CI-like checks; **`npm install`** is fine for local iteration.
 
-- Keep PRs focused and scoped.
-- Describe user-visible behavior changes clearly.
-- Include test/build evidence in the PR description.
-- Update docs when adding or changing features.
-- Add entries to `CHANGELOG.md` for meaningful user-facing changes.
+## PRs
 
-## Code style
+- Describe **user-visible** changes.
+- Update docs when behavior or deploy steps change.
+- Add or adjust tests for non-trivial logic.
+- Note anything sensitive in **SECURITY.md** instead of a public issue.
 
-- TypeScript throughout both packages.
-- Prefer small, composable functions.
-- Keep naming explicit and avoid hidden side effects.
-- Add comments only when logic is non-obvious.
+## Style
+
+- TypeScript in `client/` and `server/`.
+- Prefer small functions and explicit names.
+- Comment only where the “why” is not obvious.
+
+## Changelog
+
+Add a line under **[Unreleased]** in [CHANGELOG.md](./CHANGELOG.md) for meaningful user-facing changes.

@@ -1,9 +1,12 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Build from repo root only — do not set rootDir to `server` (Render would hide `client/` from the build).
 services:
   - type: web
-    name: markflowmd-api
+    name: markflow
     runtime: node
-    rootDir: server
-    # Build client + server so the API serves the SPA: one HTTPS origin for HTML + wss (real-time collab).
-    buildCommand: npm ci && npm run build && cd ../client && npm ci && npm run build
-    startCommand: CLIENT_DIST=../client/dist npm start
+    buildCommand: cd server && npm ci && npm run build && cd ../client && npm ci && npm run build
+    startCommand: cd server && CLIENT_DIST=../client/dist npm start
     healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"

@@ -1,27 +1,23 @@
 ---
 name: Feature request
-about: Suggest an idea or enhancement for markflow.md
+about: Suggest an improvement
 title: "[Feature] "
 labels: enhancement
-assignees: ""
+assignees: ''
 ---
-
-## Summary
-
-What would you like to add or improve?
 
 ## Problem
 
-What problem does this solve for you?
+What’s missing or painful today?
 
-## Proposed solution
+## Proposal
 
-Describe your preferred solution.
+What would you like to see?
 
-## Alternatives considered
+## Alternatives
 
-Describe any alternatives you considered.
+What else did you consider?
 
-## Additional context
+## Context
 
-Include links, screenshots, or examples if helpful.
+<!-- Links, mockups, examples -->

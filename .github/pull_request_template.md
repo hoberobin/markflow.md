@@ -1,28 +1,25 @@
 ## Summary
 
-<!-- What does this change do and why? -->
+<!-- What changed and why? -->
 
-## Changes
+## Areas touched
 
-- [ ] Documentation
-- [ ] Frontend
-- [ ] Backend
+- [ ] Docs
+- [ ] Client (`client/`)
+- [ ] Server (`server/`)
 - [ ] Tests
-- [ ] Tooling / CI
+- [ ] CI / tooling
 
-## Validation
-
-<!-- Paste commands and outcomes. -->
+## Checks
 
 ```bash
-# Example
-cd server && npm test
-cd client && npm test
+npm run test
+npm run build
 ```
 
 ## Checklist
 
-- [ ] I read and followed `CONTRIBUTING.md`
-- [ ] I updated documentation for user-visible behavior changes
-- [ ] I added or updated tests for logic changes
-- [ ] I verified no secrets are committed
+- [ ] Read [CONTRIBUTING.md](../CONTRIBUTING.md)
+- [ ] Updated docs for user-visible or deploy changes
+- [ ] Tests updated where it matters
+- [ ] No secrets or credentials in the diff

@@ -1,21 +1,21 @@
 # Roadmap
 
-This roadmap is intentionally lightweight and may change as the project evolves.
+Informal list of directions—not a commitment or timeline.
 
-## Near-term priorities
+## Done (recent themes)
 
-- Strengthen open-source contributor experience (CI, templates, onboarding docs)
-- Improve editor and preview performance for large markdown files
-- Add clearer handling for connection and sync status in the UI
+- Same-origin deployment path (Node serves SPA + WebSockets)
+- Render blueprint from repo root; Docker options documented
+- Simpler collab URL model (`getCollabHttpBase`, Vite dev/preview proxy)
+- Basic presence labels (stored/random guest names)
 
-## Next improvements
+## Next (ideas)
 
-- Add lint and format tooling with CI enforcement
-- Break up large frontend bundles through code-splitting
-- Add optional persistence backends beyond local filesystem
+- Editor/preview performance on very large documents
+- Optional persistence (today: in-memory only; lost on restart)
+- Stricter lint/format in CI if the repo grows
 
-## Future ideas
+## Maybe later
 
-- Presence details (cursor labels, last-active indicators)
-- Simple access controls for hosted environments
-- Plugin-friendly markdown extensions
+- Richer presence (cursors, activity)
+- Hosted deploy templates beyond Render

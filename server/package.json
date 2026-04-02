@@ -2,6 +2,9 @@
   "name": "markflow-md-server",
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",

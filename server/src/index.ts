@@ -33,7 +33,12 @@ const app = express()
 const server = createServer(app)
 const wss = new WebSocketServer({ server })
 
+app.set('trust proxy', 1)
 app.use(cors())
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  next()
+})
 
 const doc = new Y.Doc()
 const ytext = doc.getText('content')
@@ -82,10 +87,12 @@ awareness.on('update', ({ added, updated, removed }: { added: number[]; updated:
 })
 
 app.get('/health', (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store')
   res.json({ ok: true, storage: 'memory', mode: 'single-shared-doc' })
 })
 
 app.get('/document/raw', (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'private, no-store')
   res.setHeader('Content-Type', 'text/markdown; charset=utf-8')
   res.setHeader('Content-Disposition', `attachment; filename="${SHARED_DOC_KEY}.md"`)
   res.send(ytext.toString())

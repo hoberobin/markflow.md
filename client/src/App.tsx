@@ -12,11 +12,18 @@ import { basicSetup } from 'codemirror'
 import { getCollabHttpBase, getWsUrlForServer } from './config'
 import type { PresencePeer } from './types'
 import { SHARED_DOC_KEY } from './utils/collab'
-import { copyCurrentUrl } from './utils/presence'
+import { copyCurrentUrl, randomName, readNameFromStorage, saveNameToStorage } from './utils/presence'
 import { applyMarkdownWrapper, applyMarkdownPrefix, applyMarkdownLink } from './utils/markdownFormat'
 
-const SESSION_NAME = 'Teammate'
 const SESSION_COLOR = '#c8f060'
+
+function resolveSessionDisplayName(): string {
+  const existing = readNameFromStorage()
+  if (existing) return existing
+  const name = randomName()
+  saveNameToStorage(name)
+  return name
+}
 
 function CollabEditor({
   collabHttpBase,
@@ -32,6 +39,7 @@ function CollabEditor({
   onConnectionChange: (connected: boolean) => void
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const sessionDisplayName = useMemo(() => resolveSessionDisplayName(), [])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -39,14 +47,14 @@ function CollabEditor({
     const ydoc = new Y.Doc()
     const ytext = ydoc.getText('content')
     const provider = new WebsocketProvider(getWsUrlForServer(collabHttpBase), SHARED_DOC_KEY, ydoc)
-    provider.awareness.setLocalStateField('user', { name: SESSION_NAME, color: SESSION_COLOR })
+    provider.awareness.setLocalStateField('user', { name: sessionDisplayName, color: SESSION_COLOR })
 
     const applyPresence = () => {
       const states: PresencePeer[] = []
       provider.awareness.getStates().forEach((state, clientId) => {
         if (clientId === ydoc.clientID || !state.user) return
         const u = state.user as { name?: string; color?: string }
-        states.push({ clientId, name: u.name || SESSION_NAME, color: u.color || SESSION_COLOR })
+        states.push({ clientId, name: u.name || 'Guest', color: u.color || SESSION_COLOR })
       })
       onPresenceChange(states)
     }
@@ -91,7 +99,7 @@ function CollabEditor({
       ydoc.destroy()
       onConnectionChange(false)
     }
-  }, [collabHttpBase, editorViewRef, onConnectionChange, onContentChange, onPresenceChange])
+  }, [collabHttpBase, onConnectionChange, onContentChange, onPresenceChange, sessionDisplayName])
 
   return <div ref={containerRef} style={{ height: '100%', overflow: 'hidden' }} />
 }
@@ -258,10 +266,33 @@ export default function App() {
             </button>
           </div>
           <div className="topbar-utility-actions">
-            <button className="topbar-action" type="button" onClick={shareLink}>
+            <button
+              className="topbar-action"
+              type="button"
+              onClick={shareLink}
+              aria-label={
+                copyState === 'copied'
+                  ? 'URL copied to clipboard'
+                  : copyState === 'failed'
+                    ? 'Copy URL failed'
+                    : 'Copy page URL to clipboard'
+              }
+            >
               {copyState === 'copied' ? 'Copied URL' : copyState === 'failed' ? 'Copy failed' : 'Copy URL'}
             </button>
-            <button className="topbar-action" type="button" onClick={saveDocument} disabled={downloadState === 'downloading'}>
+            <button
+              className="topbar-action"
+              type="button"
+              onClick={saveDocument}
+              disabled={downloadState === 'downloading'}
+              aria-label={
+                downloadState === 'downloading'
+                  ? 'Preparing download'
+                  : downloadState === 'failed'
+                    ? 'Download failed, try again'
+                    : 'Download markdown file'
+              }
+            >
               {downloadState === 'downloading' ? 'Downloading...' : downloadState === 'failed' ? 'Download failed' : 'Download .md'}
             </button>
           </div>
@@ -362,6 +393,7 @@ export default function App() {
           id="editor-panel"
           role="tabpanel"
           aria-labelledby="editor-tab"
+          aria-hidden={preview}
           className={`workspace-panel workspace-panel-editor ${preview ? 'is-hidden' : 'is-active'}`}
         >
           <CollabEditor
@@ -376,6 +408,8 @@ export default function App() {
           id="preview-panel"
           role="tabpanel"
           aria-labelledby="preview-tab"
+          aria-label="Rendered markdown preview"
+          aria-hidden={!preview}
           className={`workspace-panel preview workspace-panel-preview ${preview ? 'is-active' : 'is-hidden'}`}
           dangerouslySetInnerHTML={{ __html: previewHtml }}
         />

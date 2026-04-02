@@ -1,32 +1,25 @@
-# Security Policy
+# Security
 
-Thank you for helping keep **markflow.md** and its users safe.
+Please **do not** open a public issue for undisclosed vulnerabilities.
 
-## Reporting a vulnerability
+## Report privately
 
-Please do **not** open public GitHub issues for potential security vulnerabilities.
+Use **[GitHub Security Advisories](https://github.com/hoberobin/markflow/security/advisories/new)** for this repository (private report to maintainers).
 
-Instead, report vulnerabilities privately to:
+Include:
 
-- **Email:** `security@markflowmd.com`
-
-Include as much detail as possible:
-
-- A clear description of the issue
+- What is wrong and where (client, server, deploy config)
 - Steps to reproduce
-- Potential impact
-- Any proof-of-concept code or screenshots
-
-## What to expect
-
-- We will acknowledge reports within a reasonable timeframe.
-- We will investigate and validate the issue.
-- We will coordinate disclosure and release a fix when appropriate.
+- Suspected impact
+- Optional PoC, logs, or screenshots
 
 ## Scope
 
-This policy applies to the code in this repository, including:
+- `client/` and `server/` application code  
+- Root deploy config (`render.yaml`, `Dockerfile`, `docker-compose.yml`, etc.)
 
-- Client application (`client/`)
-- Server application (`server/`)
-- Deployment configuration files
+Out of scope: third-party infrastructure policies, social engineering, or issues in dependencies without a clear impact on this repo (report those to the upstream project).
+
+## What we do
+
+We aim to acknowledge reports quickly, confirm severity, ship a fix, and coordinate disclosure when needed.
