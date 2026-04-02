@@ -13,6 +13,7 @@ import { getCollabHttpBase, getWsUrlForServer } from './config'
 import type { PresencePeer } from './types'
 import { SHARED_DOC_KEY } from './utils/collab'
 import { copyCurrentUrl, randomName, readNameFromStorage, saveNameToStorage } from './utils/presence'
+import { hasCompletedOnboarding, markOnboardingComplete } from './utils/onboarding'
 import { applyMarkdownWrapper, applyMarkdownPrefix, applyMarkdownLink } from './utils/markdownFormat'
 
 const SESSION_COLOR = '#c8f060'
@@ -105,6 +106,10 @@ function CollabEditor({
 }
 
 export default function App() {
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return !hasCompletedOnboarding()
+  })
   const [content, setContent] = useState('')
   const [preview, setPreview] = useState(false)
   const [presence, setPresence] = useState<PresencePeer[]>([])
@@ -121,6 +126,20 @@ export default function App() {
       document.title = 'markflow.md'
     }
   }, [])
+
+  const dismissOnboarding = useCallback(() => {
+    markOnboardingComplete()
+    setShowOnboarding(false)
+  }, [])
+
+  useEffect(() => {
+    if (!showOnboarding) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') dismissOnboarding()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [dismissOnboarding, showOnboarding])
 
   useEffect(() => {
     if (isConnected) {
@@ -232,6 +251,69 @@ export default function App() {
 
   return (
     <div className="single-app">
+      {showOnboarding && (
+        <div
+          className="onboarding-backdrop"
+          role="presentation"
+          onClick={event => {
+            if (event.target === event.currentTarget) dismissOnboarding()
+          }}
+        >
+          <div
+            className="onboarding-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="onboarding-title"
+            aria-describedby="onboarding-desc"
+          >
+            <h1 id="onboarding-title" className="onboarding-title">
+              Welcome to markflow.md
+            </h1>
+            <p id="onboarding-desc" className="onboarding-lede">
+              One shared markdown page that updates live for everyone on this link.
+            </p>
+            <ul className="onboarding-list">
+              <li className="onboarding-item">
+                <span className="onboarding-item-icon" aria-hidden="true">
+                  Ed
+                </span>
+                <div className="onboarding-item-body">
+                  <div className="onboarding-item-title">Edit and preview</div>
+                  <p className="onboarding-item-desc">
+                    Use <strong>Edit</strong> to write and <strong>Preview</strong> to see it rendered.
+                  </p>
+                </div>
+              </li>
+              <li className="onboarding-item">
+                <span className="onboarding-item-icon" aria-hidden="true">
+                  Co
+                </span>
+                <div className="onboarding-item-body">
+                  <div className="onboarding-item-title">In sync</div>
+                  <p className="onboarding-item-desc">Everyone here shares the same doc; the header shows who is online.</p>
+                </div>
+              </li>
+              <li className="onboarding-item">
+                <span className="onboarding-item-icon" aria-hidden="true">
+                  ⇤
+                </span>
+                <div className="onboarding-item-body">
+                  <div className="onboarding-item-title">Format, share, save</div>
+                  <p className="onboarding-item-desc">
+                    The bar under the header helps with markdown. <strong>Copy URL</strong> to invite others, <strong>Download .md</strong> for a
+                    file.
+                  </p>
+                </div>
+              </li>
+            </ul>
+            <div className="onboarding-actions">
+              <button type="button" className="onboarding-primary" onClick={dismissOnboarding} autoFocus>
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="single-topbar">
         <div className="brand">markflow.md</div>
         <div className="presence-badges">
