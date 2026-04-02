@@ -532,10 +532,14 @@ input::placeholder, textarea::placeholder {
   background: var(--bg4);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-family: var(--mono);
-  font-size: 11px;
   color: var(--accent);
-  letter-spacing: 0.04em;
+  font-size: 13px;
+}
+
+.onboarding-item-icon svg {
+  width: 1em;
+  height: 1em;
+  display: block;
 }
 
 .onboarding-item-body {

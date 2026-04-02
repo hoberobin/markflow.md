@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faTableColumns, faToolbox, faUsers } from '@fortawesome/free-solid-svg-icons'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import * as Y from 'yjs'
@@ -275,7 +277,7 @@ export default function App() {
             <ul className="onboarding-list">
               <li className="onboarding-item">
                 <span className="onboarding-item-icon" aria-hidden="true">
-                  Ed
+                  <FontAwesomeIcon icon={faTableColumns} />
                 </span>
                 <div className="onboarding-item-body">
                   <div className="onboarding-item-title">Edit and preview</div>
@@ -286,7 +288,7 @@ export default function App() {
               </li>
               <li className="onboarding-item">
                 <span className="onboarding-item-icon" aria-hidden="true">
-                  Co
+                  <FontAwesomeIcon icon={faUsers} />
                 </span>
                 <div className="onboarding-item-body">
                   <div className="onboarding-item-title">In sync</div>
@@ -295,7 +297,7 @@ export default function App() {
               </li>
               <li className="onboarding-item">
                 <span className="onboarding-item-icon" aria-hidden="true">
-                  ⇤
+                  <FontAwesomeIcon icon={faToolbox} />
                 </span>
                 <div className="onboarding-item-body">
                   <div className="onboarding-item-title">Format, share, save</div>
