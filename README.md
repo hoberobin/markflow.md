@@ -22,6 +22,7 @@ Open the URL and start collaborating instantly. No accounts, no setup flow, no d
 - **Client:** React + Vite (`client/`, default port `3000`)
 - **Server:** Node.js + Express + WebSocket (`server/`, default port `4000`)
 - **Collaboration engine:** Yjs + awareness protocol
+- **Collab URL rule:** the browser uses **the page origin** for WebSockets (`wss://<same-host>/shared`), except when `VITE_SERVER_URL` overrides it for split hosting or Docker Compose.
 - **Storage:** In-memory only (resets when server restarts)
 
 ## Quick start
@@ -33,7 +34,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000`. Compose builds the client with `VITE_SERVER_URL=http://localhost:4000` so the UI (port 3000) still talks to the API (port 4000).
+
+For **one port** locally or in production, use the repo-root [`Dockerfile`](./Dockerfile) instead.
 
 ### Local development
 
@@ -41,17 +44,19 @@ Open `http://localhost:3000`.
 ./start.sh
 ```
 
-This installs dependencies and starts both services.
+This installs dependencies and starts both services. The Vite dev server proxies `/shared`, `/health`, and `/document` to `http://127.0.0.1:4000`, so the client always uses **same-origin** URLs while the API runs on port 4000.
+
+To run the client alone: start the server first (`cd server && npm run dev`), then `cd client && npm run dev`.
 
 ## Environment configuration
 
 Copy `.env.example` to `.env` and adjust as needed:
 
 - `PORT`: server port (default `4000`)
-- `VITE_SERVER_URL`: explicit API base URL for the client
-- `VITE_WS_URL`: explicit WebSocket base URL (optional)
+- `VITE_SERVER_URL`: optional; only for **split** deploys (static site on host A, API on host B) or the Docker Compose client image. Otherwise the client uses `window.location.origin`.
+- `VITE_WS_URL`: optional explicit WebSocket URL (rare)
 
-If `VITE_WS_URL` is not set, the client derives it from `VITE_SERVER_URL` (or from the current host + `:4000`).
+If `VITE_WS_URL` is not set, WebSockets use `ws:` / `wss:` derived from the collab HTTP base (`VITE_SERVER_URL` or page origin).
 
 ## Deployment notes
 
@@ -81,12 +86,14 @@ Otherwise the browser will try to open WebSockets on the Netlify origin and sync
 ## Development commands
 
 ```bash
-# Server
+# Server (required for real-time editing when using Vite dev)
 cd server && npm run dev
 
-# Client
+# Client (proxies Yjs /shared to :4000)
 cd client && npm run dev
 ```
+
+Smoke test: open the dev URL in two browser tabs; both should show **2 online** and shared typing after a moment.
 
 Or run both checks from repo root:
 

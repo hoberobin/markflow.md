@@ -24,6 +24,11 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    host: true
+    host: true,
+    proxy: {
+      '/shared': { target: 'http://127.0.0.1:4000', changeOrigin: true, ws: true },
+      '/health': { target: 'http://127.0.0.1:4000', changeOrigin: true },
+      '/document': { target: 'http://127.0.0.1:4000', changeOrigin: true }
+    }
   }
 })

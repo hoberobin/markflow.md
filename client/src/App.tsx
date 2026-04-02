@@ -9,7 +9,7 @@ import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { basicSetup } from 'codemirror'
-import { getServerCandidatesForClient, getWsUrlForServer } from './config'
+import { getCollabHttpBase, getWsUrlForServer } from './config'
 import type { PresencePeer } from './types'
 import { SHARED_DOC_KEY } from './utils/collab'
 import { copyCurrentUrl } from './utils/presence'
@@ -19,13 +19,13 @@ const SESSION_NAME = 'Teammate'
 const SESSION_COLOR = '#c8f060'
 
 function CollabEditor({
-  serverUrl,
+  collabHttpBase,
   onContentChange,
   onPresenceChange,
   editorViewRef,
   onConnectionChange
 }: {
-  serverUrl: string
+  collabHttpBase: string
   onContentChange: (text: string) => void
   onPresenceChange: (states: PresencePeer[]) => void
   editorViewRef: { current: EditorView | null }
@@ -38,7 +38,7 @@ function CollabEditor({
 
     const ydoc = new Y.Doc()
     const ytext = ydoc.getText('content')
-    const provider = new WebsocketProvider(getWsUrlForServer(serverUrl), SHARED_DOC_KEY, ydoc)
+    const provider = new WebsocketProvider(getWsUrlForServer(collabHttpBase), SHARED_DOC_KEY, ydoc)
     provider.awareness.setLocalStateField('user', { name: SESSION_NAME, color: SESSION_COLOR })
 
     const applyPresence = () => {
@@ -91,7 +91,7 @@ function CollabEditor({
       ydoc.destroy()
       onConnectionChange(false)
     }
-  }, [editorViewRef, onConnectionChange, onContentChange, onPresenceChange, serverUrl])
+  }, [collabHttpBase, editorViewRef, onConnectionChange, onContentChange, onPresenceChange])
 
   return <div ref={containerRef} style={{ height: '100%', overflow: 'hidden' }} />
 }
@@ -103,12 +103,10 @@ export default function App() {
   const [isConnected, setIsConnected] = useState(false)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'failed'>('idle')
-  const [serverCandidates] = useState<string[]>(() => getServerCandidatesForClient())
-  const [serverIndex, setServerIndex] = useState(0)
   const [collabUnreachable, setCollabUnreachable] = useState(false)
   const editorViewRef = useRef<EditorView | null>(null)
 
-  const serverUrl = serverCandidates[serverIndex] || serverCandidates[0] || window.location.origin
+  const collabHttpBase = useMemo(() => getCollabHttpBase(), [])
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -117,24 +115,13 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (isConnected) return
-    if (serverIndex >= serverCandidates.length - 1) return
-    const timer = setTimeout(() => {
-      setServerIndex(index => Math.min(index + 1, serverCandidates.length - 1))
-    }, 1000)
-    return () => clearTimeout(timer)
-  }, [isConnected, serverCandidates.length, serverIndex])
-
-  useEffect(() => {
     if (isConnected) {
       setCollabUnreachable(false)
       return
     }
-    if (serverCandidates.length === 0) return
-    if (serverIndex < serverCandidates.length - 1) return
     const timer = window.setTimeout(() => setCollabUnreachable(true), 6000)
     return () => clearTimeout(timer)
-  }, [isConnected, serverIndex, serverCandidates.length])
+  }, [isConnected])
 
   const previewHtml = useMemo(() => {
     const parsed = marked.parse(content || '', { async: false }) as string
@@ -284,9 +271,9 @@ export default function App() {
       {collabUnreachable && (
         <div className="collab-banner" role="status">
           <span>
-            Real-time collaboration cannot reach the server from this URL. Serve the web app from the same host as the API
-            (see README), or rebuild the client with <code className="collab-banner-code">VITE_SERVER_URL</code> pointing at
-            your API.
+            Still not connected after a few seconds. For local dev, run the API on port 4000 alongside this app (see README).
+            In production, serve the site from the same host as the API, or set{' '}
+            <code className="collab-banner-code">VITE_SERVER_URL</code> at build time for a split deploy.
           </span>
           <button type="button" className="collab-banner-dismiss" onClick={() => setCollabUnreachable(false)}>
             Dismiss
@@ -378,8 +365,7 @@ export default function App() {
           className={`workspace-panel workspace-panel-editor ${preview ? 'is-hidden' : 'is-active'}`}
         >
           <CollabEditor
-            key={serverUrl}
-            serverUrl={serverUrl}
+            collabHttpBase={collabHttpBase}
             onContentChange={setContent}
             onPresenceChange={setPresence}
             editorViewRef={editorViewRef}

@@ -10,7 +10,10 @@ services:
     restart: unless-stopped
 
   client:
-    build: ./client
+    build:
+      context: ./client
+      args:
+        VITE_SERVER_URL: http://localhost:4000
     ports:
       - "3000:3000"
     depends_on:

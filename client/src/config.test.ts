@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { getServerCandidatesForClient, getServerUrl, getWsUrl, getWsUrlForServer } from './config'
+import { getCollabHttpBase, getServerUrl, getWsUrl, getWsUrlForServer } from './config'
 
 const originalWindow = globalThis.window
 
@@ -34,29 +34,30 @@ describe('config URL resolution', () => {
     }
   })
 
-  it('uses same-origin for deployed environments without dev ports', () => {
+  it('uses page origin when no env (same-origin collab, dev proxy to API)', () => {
     setWindowForTest(mockWindowLocation({
       protocol: 'https:',
       hostname: 'docs.example.com',
       origin: 'https://docs.example.com',
       port: ''
     }))
+    expect(getCollabHttpBase()).toBe('https://docs.example.com')
     expect(getServerUrl()).toBe('https://docs.example.com')
     expect(getWsUrl()).toBe('wss://docs.example.com')
   })
 
-  it('uses local fallback ports in local dev', () => {
+  it('uses page origin on local dev port (Vite proxies /shared to :4000)', () => {
     setWindowForTest(mockWindowLocation({
       protocol: 'http:',
       hostname: '127.0.0.1',
       origin: 'http://127.0.0.1:3000',
       port: '3000'
     }))
-    expect(getServerUrl()).toBe('http://127.0.0.1:4000')
-    expect(getWsUrl()).toBe('ws://127.0.0.1:4000')
+    expect(getCollabHttpBase()).toBe('http://127.0.0.1:3000')
+    expect(getWsUrl()).toBe('ws://127.0.0.1:3000')
   })
 
-  it('respects explicit server URL env for ws conversion', () => {
+  it('respects explicit server URL env for collab base and ws conversion', () => {
     vi.stubEnv('VITE_SERVER_URL', 'https://api.markflow.dev')
     setWindowForTest(mockWindowLocation({
       protocol: 'https:',
@@ -64,6 +65,7 @@ describe('config URL resolution', () => {
       origin: 'https://docs.example.com',
       port: ''
     }))
+    expect(getCollabHttpBase()).toBe('https://api.markflow.dev')
     expect(getServerUrl()).toBe('https://api.markflow.dev')
     expect(getWsUrl()).toBe('wss://api.markflow.dev')
   })
@@ -71,32 +73,5 @@ describe('config URL resolution', () => {
   it('maps server URL to websocket URL directly', () => {
     expect(getWsUrlForServer('https://api.example.com')).toBe('wss://api.example.com')
     expect(getWsUrlForServer('http://127.0.0.1:4000')).toBe('ws://127.0.0.1:4000')
-  })
-
-  it('includes likely same-origin and api candidates', () => {
-    setWindowForTest(mockWindowLocation({
-      protocol: 'https:',
-      hostname: 'docs.example.com',
-      origin: 'https://docs.example.com',
-      port: ''
-    }))
-    const candidates = getServerCandidatesForClient()
-    expect(candidates).toContain('https://docs.example.com')
-    expect(candidates).toContain('https://docs.example.com/api')
-  })
-
-  it('prefers local API port before page origin on dev ports', () => {
-    setWindowForTest(mockWindowLocation({
-      protocol: 'http:',
-      hostname: '127.0.0.1',
-      origin: 'http://127.0.0.1:3000',
-      port: '3000'
-    }))
-    const candidates = getServerCandidatesForClient()
-    const originIndex = candidates.indexOf('http://127.0.0.1:3000')
-    const apiIndex = candidates.indexOf('http://127.0.0.1:4000')
-    expect(apiIndex).toBeGreaterThanOrEqual(0)
-    expect(originIndex).toBeGreaterThanOrEqual(0)
-    expect(apiIndex).toBeLessThan(originIndex)
   })
 })

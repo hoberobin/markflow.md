@@ -6,10 +6,6 @@ function getServerEnvUrl(): string {
   return cleanUrl(import.meta.env.VITE_SERVER_URL)
 }
 
-function isLikelyLocalDevPort(port: string): boolean {
-  return port === '3000' || port === '5173' || port === '4173'
-}
-
 function toWebSocketUrl(serverUrl: string): string | null {
   try {
     const url = new URL(serverUrl)
@@ -22,42 +18,22 @@ function toWebSocketUrl(serverUrl: string): string | null {
   }
 }
 
-function getDefaultServerUrl(): string {
+/**
+ * HTTP(S) base for Yjs / REST: optional split-deploy override, else the page origin.
+ * Local dev: run the API on :4000 and use Vite `server.proxy` so origin (e.g. :3000) forwards to it.
+ */
+export function getCollabHttpBase(): string {
+  const envUrl = getServerEnvUrl()
+  if (envUrl) return envUrl
   if (typeof window !== 'undefined') {
-    const { protocol, hostname, origin, port } = window.location
-    if (!isLikelyLocalDevPort(port)) return cleanUrl(origin)
-    return `${protocol}//${hostname}:4000`
+    return cleanUrl(window.location.origin)
   }
   return 'http://localhost:4000'
 }
 
-function getServerCandidates(): string[] {
-  const out: string[] = []
-  const push = (value: string): void => {
-    const cleaned = cleanUrl(value)
-    if (cleaned && !out.includes(cleaned)) out.push(cleaned)
-  }
-
-  push(getServerEnvUrl())
-
-  if (typeof window !== 'undefined') {
-    const { origin, protocol, hostname, port } = window.location
-    if (isLikelyLocalDevPort(port)) {
-      push(`${protocol}//${hostname}:4000`)
-    }
-    push(origin)
-    push(`${cleanUrl(origin)}/api`)
-  }
-  return out
-}
-
-export function getServerCandidatesForClient(): string[] {
-  return getServerCandidates()
-}
-
-/** API base: env/runtime override wins, then best-effort auto detection, then fallback. */
+/** @deprecated Prefer getCollabHttpBase(); kept for callers that expect this name. */
 export function getServerUrl(): string {
-  return getServerEnvUrl() || getDefaultServerUrl()
+  return getCollabHttpBase()
 }
 
 export function getWsUrlForServer(serverUrl: string): string {
@@ -68,5 +44,5 @@ export function getWsUrl(): string {
   const explicitWs = cleanUrl(import.meta.env.VITE_WS_URL)
   if (explicitWs) return explicitWs
 
-  return getWsUrlForServer(getServerUrl())
+  return getWsUrlForServer(getCollabHttpBase())
 }

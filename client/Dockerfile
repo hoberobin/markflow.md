@@ -4,7 +4,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
-# Omit VITE_* so runtime uses same host as the page on port 4000 (see client/src/config.ts)
+# Docker Compose (UI :3000, API :4000): pass VITE_SERVER_URL=http://localhost:4000 so WS hits the API.
+# Single-origin deploy (root Dockerfile / Render): leave unset so the client uses page origin.
+ARG VITE_SERVER_URL=
+ENV VITE_SERVER_URL=$VITE_SERVER_URL
 RUN npm run build
 
 FROM node:20-alpine
