@@ -118,6 +118,41 @@ input::placeholder, textarea::placeholder {
   flex-shrink: 0;
 }
 
+.collab-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text2);
+  background: rgba(255, 107, 91, 0.1);
+  border-bottom: 1px solid var(--border);
+}
+
+.collab-banner-code {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.collab-banner-dismiss {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 12px;
+}
+
+.collab-banner-dismiss:hover {
+  color: var(--text);
+  border-color: var(--border2);
+}
+
 .brand {
   font-family: var(--mono);
   color: var(--accent);

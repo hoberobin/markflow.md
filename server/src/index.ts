@@ -1,3 +1,6 @@
+import path from 'node:path'
+import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import express, { type Request, type Response } from 'express'
 import { createServer } from 'http'
 import { WebSocketServer, type WebSocket } from 'ws'
@@ -8,6 +11,21 @@ import * as awarenessProtocol from 'y-protocols/awareness.js'
 import * as encoding from 'lib0/encoding.js'
 import * as decoding from 'lib0/decoding.js'
 import { DEFAULT_MARKDOWN, SHARED_DOC_KEY, parseDocPath } from './utils/collab.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+/** When set (or when ../client/dist exists), the API also serves the Vite build so WS + HTTP share one origin. */
+function resolveClientDist(): string | null {
+  const fromEnv = process.env.CLIENT_DIST?.trim()
+  const candidates: string[] = []
+  if (fromEnv) candidates.push(path.resolve(process.cwd(), fromEnv))
+  candidates.push(path.resolve(process.cwd(), '../client/dist'))
+  candidates.push(path.resolve(__dirname, '../../client/dist'))
+  for (const dir of candidates) {
+    if (fs.existsSync(path.join(dir, 'index.html'))) return dir
+  }
+  return null
+}
 
 type MarkflowWebSocket = WebSocket & { markflowAwarenessIds?: Set<number> }
 
@@ -72,6 +90,18 @@ app.get('/document/raw', (_req: Request, res: Response) => {
   res.setHeader('Content-Disposition', `attachment; filename="${SHARED_DOC_KEY}.md"`)
   res.send(ytext.toString())
 })
+
+const clientDist = resolveClientDist()
+if (clientDist) {
+  app.use(express.static(clientDist))
+  app.get('*', (req, res, next) => {
+    if (req.method !== 'GET') return next()
+    if (String(req.headers.upgrade || '').toLowerCase() === 'websocket') return next()
+    res.sendFile(path.join(clientDist, 'index.html'), err => {
+      if (err) next(err)
+    })
+  })
+}
 
 wss.on('connection', (ws: MarkflowWebSocket, req) => {
   const url = new URL(req.url || '/', 'http://localhost')
@@ -150,6 +180,11 @@ const PORT = Number(process.env.PORT || 4000)
 const httpServer = server.listen(PORT, () => {
   console.log(`markflow.md server running on port ${PORT}`)
   console.log('Running in single shared document mode (in-memory only)')
+  if (clientDist) {
+    console.log(`Serving web UI from ${clientDist}`)
+  } else {
+    console.log('Client SPA not found (set CLIENT_DIST or build client to ../client/dist for same-origin collab)')
+  }
 })
 
 let isShuttingDown = false

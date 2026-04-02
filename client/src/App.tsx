@@ -105,6 +105,7 @@ export default function App() {
   const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'failed'>('idle')
   const [serverCandidates] = useState<string[]>(() => getServerCandidatesForClient())
   const [serverIndex, setServerIndex] = useState(0)
+  const [collabUnreachable, setCollabUnreachable] = useState(false)
   const editorViewRef = useRef<EditorView | null>(null)
 
   const serverUrl = serverCandidates[serverIndex] || serverCandidates[0] || window.location.origin
@@ -123,6 +124,17 @@ export default function App() {
     }, 1000)
     return () => clearTimeout(timer)
   }, [isConnected, serverCandidates.length, serverIndex])
+
+  useEffect(() => {
+    if (isConnected) {
+      setCollabUnreachable(false)
+      return
+    }
+    if (serverCandidates.length === 0) return
+    if (serverIndex < serverCandidates.length - 1) return
+    const timer = window.setTimeout(() => setCollabUnreachable(true), 6000)
+    return () => clearTimeout(timer)
+  }, [isConnected, serverIndex, serverCandidates.length])
 
   const previewHtml = useMemo(() => {
     const parsed = marked.parse(content || '', { async: false }) as string
@@ -268,6 +280,19 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {collabUnreachable && (
+        <div className="collab-banner" role="status">
+          <span>
+            Real-time collaboration cannot reach the server from this URL. Serve the web app from the same host as the API
+            (see README), or rebuild the client with <code className="collab-banner-code">VITE_SERVER_URL</code> pointing at
+            your API.
+          </span>
+          <button type="button" className="collab-banner-dismiss" onClick={() => setCollabUnreachable(false)}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <div className="toolbar" role="toolbar" aria-label="Markdown formatting tools">
         <div className="toolbar-group">

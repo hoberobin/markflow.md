@@ -58,26 +58,25 @@ If `VITE_WS_URL` is not set, the client derives it from `VITE_SERVER_URL` (or fr
 - Any host that supports Node + WebSockets will work.
 - Use persistent storage only if you later decide to add it back; current mode is intentionally ephemeral.
 
-### Render quick path (server)
+### Render quick path (recommended: one URL)
+
+Use the included [`render.yaml`](./render.yaml) blueprint, or configure manually:
 
 1. Push this repo to GitHub.
-2. Create a Render Web Service from this repo.
+2. Create a Render **Web Service** from the repo.
 3. Use:
    - Root directory: `server`
-   - Build command: `npm install && npm run build`
-   - Start command: `npm start`
-4. Deploy and copy the HTTPS URL (example: `https://markflow-api.onrender.com`).
+   - Build command: `npm ci && npm run build && cd ../client && npm ci && npm run build`
+   - Start command: `CLIENT_DIST=../client/dist npm start`
+4. Open the service HTTPS URL in two browsers — collaboration uses **the same host** for the page and `wss://`, so no `VITE_*` env vars are required.
 
-### Netlify quick path (client)
+### Netlify + separate API (advanced)
 
-1. Import this repo in Netlify.
-2. Use:
-   - Base directory: `client`
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-3. Add:
-   - `VITE_SERVER_URL=https://<your-render-service>.onrender.com`
-4. Deploy.
+If the static site and API are on different domains, set at **client build time**:
+
+- `VITE_SERVER_URL=https://<your-api-host>`
+
+Otherwise the browser will try to open WebSockets on the Netlify origin and sync will not work.
 
 ## Development commands
 
