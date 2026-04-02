@@ -84,4 +84,19 @@ describe('config URL resolution', () => {
     expect(candidates).toContain('https://docs.example.com')
     expect(candidates).toContain('https://docs.example.com/api')
   })
+
+  it('prefers local API port before page origin on dev ports', () => {
+    setWindowForTest(mockWindowLocation({
+      protocol: 'http:',
+      hostname: '127.0.0.1',
+      origin: 'http://127.0.0.1:3000',
+      port: '3000'
+    }))
+    const candidates = getServerCandidatesForClient()
+    const originIndex = candidates.indexOf('http://127.0.0.1:3000')
+    const apiIndex = candidates.indexOf('http://127.0.0.1:4000')
+    expect(apiIndex).toBeGreaterThanOrEqual(0)
+    expect(originIndex).toBeGreaterThanOrEqual(0)
+    expect(apiIndex).toBeLessThan(originIndex)
+  })
 })

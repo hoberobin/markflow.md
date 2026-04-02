@@ -138,32 +138,10 @@ export default function App() {
     }
   }, [content])
 
-  const saveDocument = useCallback(async () => {
+  const saveDocument = useCallback(() => {
     setDownloadState('downloading')
     try {
-      const ordered = [serverUrl, ...serverCandidates.filter(candidate => candidate !== serverUrl)]
-      let markdown = ''
-      let switchedTo = -1
-      for (let i = 0; i < ordered.length; i++) {
-        try {
-          const response = await fetch(`${ordered[i]}/document/raw`)
-          if (!response.ok) continue
-          markdown = await response.text()
-          switchedTo = i
-          break
-        } catch {
-          // Try next candidate.
-        }
-      }
-      if (!markdown) throw new Error('Failed to download markdown file')
-
-      if (switchedTo > 0) {
-        const nextBase = ordered[switchedTo]
-        const nextIndex = serverCandidates.findIndex(candidate => candidate === nextBase)
-        if (nextIndex >= 0) setServerIndex(nextIndex)
-      }
-
-      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
       const downloadUrl = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = downloadUrl
@@ -177,7 +155,7 @@ export default function App() {
       setDownloadState('failed')
       window.setTimeout(() => setDownloadState('idle'), 1500)
     }
-  }, [serverCandidates, serverUrl])
+  }, [content])
 
   const shareLink = async () => {
     const ok = await copyCurrentUrl()

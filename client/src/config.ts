@@ -7,7 +7,7 @@ function getServerEnvUrl(): string {
 }
 
 function isLikelyLocalDevPort(port: string): boolean {
-  return port === '3000' || port === '5173'
+  return port === '3000' || port === '5173' || port === '4173'
 }
 
 function toWebSocketUrl(serverUrl: string): string | null {
@@ -42,11 +42,11 @@ function getServerCandidates(): string[] {
 
   if (typeof window !== 'undefined') {
     const { origin, protocol, hostname, port } = window.location
-    push(origin)
-    push(`${cleanUrl(origin)}/api`)
     if (isLikelyLocalDevPort(port)) {
       push(`${protocol}//${hostname}:4000`)
     }
+    push(origin)
+    push(`${cleanUrl(origin)}/api`)
   }
   return out
 }
